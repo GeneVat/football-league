@@ -1,5 +1,6 @@
 
-import './list.js'; 
+import './list.js';
+import "./css.js";
 import { COMPETITIONS, ALL_EURO_TEAMS, ALL_WORLD_CUP_TEAMS } from './list.js';
 
 // --- FILE INPUT FOR LOADING ---
