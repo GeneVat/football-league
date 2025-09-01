@@ -21,7 +21,7 @@ const config = {
         rules: [
             {
                 test: /\.css$/i,
-                use: [stylesHandler, 'css-loader'],
+                use: [stylesHandler, 'style-loader', 'css-loader', 'postcss-loader', 'sass-loader'],
             },
             {
                 test: /\.(eot|svg|ttf|woff|woff2|png|jpg|gif)$/i,
@@ -31,6 +31,7 @@ const config = {
                 test: /\.html$/i,
                 use: ['html-loader'],
             },
+            
         ],
     },
 };
