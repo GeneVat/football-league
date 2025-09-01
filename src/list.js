@@ -1098,64 +1098,6 @@ export const COMPETITIONS = [
         },
       },
       {
-        id: "euros",
-        name: "Euro Championship",
-        emoji: "🇪🇺",
-        format: "mixed",
-        teamCount: 24,
-        rounds: 3,
-        playoffTeams: 16,
-        groupCount: 6,
-        teams: [
-        ],
-        positionStyles: {
-          "1-2": {
-            bg: "bg-blue-900/40",
-            border: "border-blue-500/60",
-            icon: "⚡",
-            label: "Qualified",
-          },
-          3: {
-            bg: "bg-orange-900/40",
-            border: "border-orange-500/60",
-            icon: "❓",
-            label: "Maybe Qualified",
-          },
-          4: {
-            bg: "bg-red-900/40",
-            border: "border-red-500/60",
-            icon: "❌",
-            label: "Eliminated",
-          },
-        },
-      },
-      {
-        id: "worldcup",
-        name: "World Cup",
-        emoji: "🌍",
-        format: "mixed",
-        teamCount: 32,
-        rounds: 3,
-        playoffTeams: 16,
-        groupCount: 8,
-        teams: [
-        ],
-        positionStyles: {
-          "1-2": {
-            bg: "bg-blue-900/40",
-            border: "border-blue-500/60",
-            icon: "⚡",
-            label: "Qualified",
-          },
-          "3-4": {
-            bg: "bg-red-900/40",
-            border: "border-red-500/60",
-            icon: "❌",
-            label: "Eliminated",
-          },
-        },
-      },
-      {
         id: "copa_america",
         name: "Copa América",
         emoji: "🏆",
@@ -1844,15 +1786,4 @@ export const COMPETITIONS = [
           },
         },
       }
-        ];
-
-       export const ALL_EURO_TEAMS = [
-            "Albania", "Andorra", "Armenia", "Austria", "Azerbaijan", "Belarus", "Belgium",
-            "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Cyprus"
-        ];
-
-       export const ALL_WORLD_CUP_TEAMS = [
-            "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda",
-            "Argentina", "Armenia", "Aruba", "Australia", "Austria", "Azerbaijan", "Bahamas",
-            "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin"
         ];
