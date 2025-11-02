@@ -11,7 +11,7 @@ module.exports = {
     path: path.resolve(__dirname, 'dist'),
     clean: true,
   },
-  mode: isProduction ? 'production' : 'development',
+  mode: 'development',
   plugins: [
     new HtmlWebpackPlugin({
       template: './src/index.html',
