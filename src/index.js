@@ -35,7 +35,6 @@ const TeamStats = {
 const PositionStyle = {
   bg: "",
   border: "",
-  icon: "",
   label: null,
 };
 
@@ -252,7 +251,7 @@ function seedKnockout(top, playoffTeams, allowThird = false) {
 
 function getPositionStyle(position, competition) {
   if (!competition.positionStyles)
-    return { bg: "bg-gray-800/40", border: "border-gray-700/60", icon: "⚪" };
+    return { bg: "bg-gray-800/40", border: "border-gray-700/60" };
   if ("all" in competition.positionStyles)
     return competition.positionStyles.all;
   for (const [key, style] of Object.entries(competition.positionStyles)) {
@@ -262,7 +261,7 @@ function getPositionStyle(position, competition) {
       if (position >= start && position <= end) return style;
     }
   }
-  return { bg: "bg-gray-800/40", border: "border-gray-700/60", icon: "⚪" };
+  return { bg: "bg-gray-800/40", border: "border-gray-700/60"};
 }
 
 // --- UI UTILITIES ---
@@ -297,7 +296,6 @@ function createLeagueTableRow(team, position, competition) {
   teamInfo.className = "flex items-center space-x-3 flex-1 min-w-0";
   teamInfo.innerHTML = `
         <span class="text-xs w-6 text-center font-bold">${position}</span>
-        <span class="text-sm">${style.icon}</span>
         <span class="text-sm font-medium truncate">${team.name}</span>
       `;
 
@@ -984,7 +982,6 @@ if (format === "knockout") {
       selectedComp = {
         id: "custom",
         name: name,
-        emoji: "🏆",
         format: format,
         teamCount: teams.length,
         teams: teams,
@@ -992,13 +989,11 @@ if (format === "knockout") {
           1: {
             bg: "bg-yellow-900/40",
             border: "border-yellow-500/60",
-            icon: "🏆",
             label: "Champion",
           },
           "2-4": {
             bg: "bg-blue-900/40",
             border: "border-blue-500/60",
-            icon: "🥈",
             label: "Top Finish",
           },
         },
@@ -1083,7 +1078,7 @@ if (format === "knockout") {
       const groupDiv = document.createElement("div");
       groupDiv.className =
         "space-y-2 bg-gray-800/70 rounded-xl border border-gray-700 p-3 shadow-inner";
-      groupDiv.innerHTML = `<h4 class="text-sm font-bold text-blue-300">📊 Group ${groupStats[0].group}</h4>
+      groupDiv.innerHTML = `<h4 class="text-sm font-bold text-blue-300">Group ${groupStats[0].group}</h4>
               <div class="text-left text-xs font-mono uppercase text-gray-400 flex justify-between px-2 mb-2">
                 <span class="flex-1 ml-12">Team</span><div class="flex space-x-4"><span class="w-6 text-center">P</span><span class="w-6 text-center">W</span><span class="w-6 text-center">D</span><span class="w-6 text-center">L</span><span class="w-8 text-center">G/D</span><span class="w-8 text-center">Pts</span></div>
               </div>`;
@@ -1094,7 +1089,6 @@ if (format === "knockout") {
               [`1-${selectedComp.qualifying.advance}`]: {
                 bg: "bg-green-900/40",
                 border: "border-green-500/60",
-                icon: "✔️",
                 label: "Qualifies",
               },
             },
@@ -1120,7 +1114,7 @@ if (format === "knockout") {
       )
     );
     buttonDiv.appendChild(
-      createButton("warning", "💾 Download Save", "w-full py-2", saveState)
+      createButton("warning", "Download Save", "w-full py-2", saveState)
     );
     buttonDiv.appendChild(
       createButton("secondary", "← New Tournament", "w-full py-2", resetState)
@@ -1209,7 +1203,7 @@ if (format === "knockout") {
         groupDiv.className =
           "space-y-2 bg-gray-800/70 rounded-xl border border-gray-700 p-3 shadow-inner";
         if (hasGroups()) {
-          groupDiv.innerHTML = `<h4 class="text-sm font-bold text-blue-300">📊 Group ${groupStats[0].group}</h4>`;
+          groupDiv.innerHTML = `<h4 class="text-sm font-bold text-blue-300">Group ${groupStats[0].group}</h4>`;
         }
         groupDiv.innerHTML += `<div class="text-left text-xs font-mono uppercase text-gray-400 flex justify-between px-2 mb-2"><span class="flex-1 ml-12">Team</span><div class="flex space-x-4"><span class="w-6 text-center">P</span><span class="w-6 text-center">W</span><span class="w-6 text-center">D</span><span class="w-6 text-center">L</span><span class="w-8 text-center">G/D</span><span class="w-8 text-center">Pts</span></div></div>`;
         groupStats.forEach((t, i) =>
@@ -1236,7 +1230,7 @@ if (format === "knockout") {
     buttonDiv.className = "flex flex-col space-y-3 mb-4";
     if (round === 0) {
       buttonDiv.appendChild(
-        createButton("primary", "🚀 Start", "w-full py-3 text-lg", () => {
+        createButton("primary", "Start", "w-full py-3 text-lg", () => {
           round = 1;
           render();
         })
@@ -1252,7 +1246,7 @@ if (format === "knockout") {
       );
     }
     buttonDiv.appendChild(
-      createButton("warning", "💾 Download Save", "w-full py-2", saveState)
+      createButton("warning", "Download Save", "w-full py-2", saveState)
     );
     buttonDiv.appendChild(
       createButton("secondary", "← New Tournament", "w-full py-2", resetState)
@@ -1431,13 +1425,13 @@ if (isKnockoutPhase) {
   buttonDiv.appendChild(
     createButton(
       "success",
-      isFinalRound ? "🏆 Finish Tournament" : "⚡ Advance to Next Round",
-      "text-xl py-4 px-8",
+      isFinalRound ? "Finish Tournament" : "Advance to Next Round",
+      "py-3 px-6",
       advanceFn
     )
   );
   buttonDiv.appendChild(
-    createButton("warning", "💾 Download Save", "py-3 px-6", saveState)
+    createButton("warning", "Download Save", "py-3 px-6", saveState)
   );
   buttonDiv.appendChild(
     createButton("secondary", "← New Tournament", "py-3 px-6", resetState)
@@ -1496,7 +1490,7 @@ if (isKnockoutPhase) {
         groupDiv.className =
           "space-y-2 bg-gray-800/70 rounded-xl border border-gray-700 p-3 shadow-inner mb-4";
         if (hasGroups()) {
-          groupDiv.innerHTML = `<h4 class="text-sm font-bold text-blue-300">📊 Group ${groupStats[0].group}</h4>`;
+          groupDiv.innerHTML = `<h4 class="text-sm font-bold text-blue-300">Group ${groupStats[0].group}</h4>`;
         }
         groupDiv.innerHTML += `<div class="text-left text-xs font-mono uppercase text-gray-400 flex justify-between px-2 mb-2"><span class="flex-1 ml-12">Team</span><div class="flex space-x-4"><span class="w-6 text-center">P</span><span class="w-6 text-center">W</span><span class="w-6 text-center">D</span><span class="w-6 text-center">L</span><span class="w-8 text-center">G/D</span><span class="w-8 text-center">Pts</span></div></div>`;
         groupStats.forEach((t, i) =>
