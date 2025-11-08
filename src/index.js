@@ -837,7 +837,7 @@ function render() {
       const button = createButton(
         "secondary",
         "",
-        "h-40 flex flex-col items-center justify-center text-xl space-y-2 hover:scale-105",
+        "h-35 flex flex-col items-center justify-center text-xl space-y-2 hover:scale-110",
         () => {
           selectedComp = comp;
           currentPhase = "league";
@@ -850,7 +850,7 @@ function render() {
     const customButton = createButton(
       "primary",
       "",
-      "h-40 flex flex-col items-center justify-center text-xl space-y-2 hover:scale-105",
+      "h-35 flex flex-col items-center justify-center text-xl space-y-2 hover:scale-110",
       () => {
         currentPhase = "custom_creation";
         render();
@@ -859,7 +859,7 @@ function render() {
     const customButton2 = createButton(
       "primary",
       "",
-      "h-40 flex flex-col items-center justify-center text-xl space-y-2 hover:scale-105",
+      "h-35 flex flex-col items-center justify-center text-xl space-y-2 hover:scale-110",
       () => {
         triggerLoad()
       }
