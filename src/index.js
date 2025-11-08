@@ -828,22 +828,11 @@ function render() {
     container.innerHTML = `
           <div class="max-w-6xl mx-auto">
             <div class="bg-gray-900 border border-gray-700 rounded-2xl flex flex-col items-center justify-center p-8 mb-8">
-              <div class="text-6xl mb-4 animate-bounce">⚽</div>
-              <h1 class="text-4xl font-bold mb-2 text-blue-300">FLS</h1>
-              <p class="text-gray-400 text-lg mb-6">Choose your competition</p>
-              <div id="load-btn-container"></div>
+              <h1 class="text-7xl font-bold mb-2 text-blue-300">FLS</h1>          
+
             </div>
             <div id="comp-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
           </div>`;
-
-    const loadBtnContainer = container.querySelector("#load-btn-container");
-    const loadButton = createButton(
-      "success",
-      "💾 Upload Save",
-      "",
-      triggerLoad
-    );
-    loadBtnContainer.appendChild(loadButton);
 
     const compGrid = container.querySelector("#comp-grid");
     COMPETITIONS.forEach((comp) => {
@@ -869,8 +858,20 @@ function render() {
         render();
       }
     );
-    customButton.innerHTML = `<div class="text-5xl">🛠️</div><span class="text-center">Create Custom</span><span class="text-xs text-gray-400 capitalize">Your own tournament</span>`;
+    const customButton2 = createButton(
+      "primary",
+      "",
+      "h-40 flex flex-col items-center justify-center text-xl space-y-2 hover:scale-105",
+      () => {
+        triggerLoad()
+      }
+    );
+    customButton.innerHTML = `<div class="text-7xl"></div><span class="text-center">Create Custom</span>`;
     compGrid.appendChild(customButton);
+    root.appendChild(container);
+
+    customButton2.innerHTML = `<div class="text-7xl"></div><span class="text-center">Load Save</span>`;
+    compGrid.appendChild(customButton2);
     root.appendChild(container);
     return;
   }
