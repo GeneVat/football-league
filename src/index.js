@@ -857,7 +857,7 @@ function render() {
           render();
         }
       );
-      button.innerHTML = `<div class="text-5xl">${comp.emoji}</div><span class="text-center">${comp.name}</span><span class="text-xs text-gray-400 capitalize">${comp.format} • ${comp.teamCount} teams</span>`;
+      button.innerHTML = `<div class="text-6xl">${comp.emoji}</div><span class="text-center">${comp.name}</span>`;
       compGrid.appendChild(button);
     });
     const customButton = createButton(
@@ -973,7 +973,7 @@ if (format === "knockout") {
   }
   // For knockout, we can handle any number of teams, but warn if not power of 2
   if ((teams.length & (teams.length - 1)) !== 0) {
-    if (!confirm(`You have ${teams.length} teams. For a balanced knockout tournament, it's recommended to use a power of 2 (2, 4, 8, 16, etc.). Some teams may get byes. Continue anyway?`)) {
+    if (!confirm(`You have ${teams.length} teams. For a balanced knockout tournament use 2, 4, 8, 16, 32, or 64`)) {
       return;
     }
   }

@@ -2,7 +2,7 @@ export const COMPETITIONS = [
   {
     id: "premier",
     name: "Premier League",
-    emoji: "🇬🇧",
+    emoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     format: "league",
     teamCount: 20,
     rounds: 38,
@@ -39,7 +39,7 @@ export const COMPETITIONS = [
   {
     id: "scottish",
     name: "Scottish Premiership",
-    emoji: "🏴",
+    emoji: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
     format: "league",
     teamCount: 12,
     rounds: 22,
@@ -68,7 +68,7 @@ export const COMPETITIONS = [
   {
     id: "championship",
     name: "EFL Championship",
-    emoji: "🇬🇧",
+    emoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     format: "league",
     teamCount: 24,
     rounds: 46,
@@ -107,7 +107,7 @@ export const COMPETITIONS = [
   {
     id: "league_one",
     name: "EFL League One",
-    emoji: "🇬🇧",
+    emoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     format: "league",
     teamCount: 24,
     rounds: 46,
@@ -146,7 +146,7 @@ export const COMPETITIONS = [
   {
     id: "league_two",
     name: "EFL League Two",
-    emoji: "🇬🇧",
+    emoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     format: "league",
     teamCount: 24,
     rounds: 46,
@@ -222,7 +222,7 @@ export const COMPETITIONS = [
   {
     id: "champions",
     name: "Champions League",
-    emoji: "🏆",
+    emoji: "🇪🇺",
     format: "mixed",
     teamCount: 32,
     rounds: 6,
@@ -306,7 +306,7 @@ export const COMPETITIONS = [
   {
     id: "fa_cup",
     name: "FA Cup",
-    emoji: "🏴",
+    emoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     format: "knockout",
     teamCount: 64,
     playoffTeams: 64,
