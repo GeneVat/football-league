@@ -901,6 +901,7 @@ function render() {
           <div class="max-w-6xl mx-auto">
             <div class="bg-gray-900 border border-gray-700 rounded-2xl flex flex-col items-center justify-center p-8 mb-8">
               <h1 class="text-7xl font-bold mb-2 text-blue-300">FLS</h1>          
+              <h2 class="text-2xl font-bold mb-2 text-blue-500">v2.6</h2>          
             </div>
             <div id="comp-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
           </div>`;
