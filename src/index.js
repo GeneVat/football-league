@@ -808,6 +808,80 @@ function render() {
   const root = document.getElementById("root");
   root.innerHTML = "";
 
+  // --- REFEREE AND WEATHER DATA ---
+
+
+  const WEATHER_CONDITIONS = [
+    "Clear", "Cloudy", "Overcast", "Rain", "Windy"
+  ];
+
+  const TIMES_OF_DAY = [
+    "Sat 12:30", "Sat 5:30", "Sat 12:30", "Sat 5:30","Sat 12:30", "Sat 5:30","Sat 12:30", "Sat 5:30","Sun 2:00", "Sun 4:30","Sun 2:00", "Sun 4:30","Tue 7:45"
+  ];
+
+  // Function to get random elements from array
+  const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  
+  // Function to assign match details (, weather, time)
+  const assignMatchDetails = (match) => {
+  
+    if (!match.weather) {
+      match.weather = getRandomElement(WEATHER_CONDITIONS);
+    }
+    if (!match.time) {
+      match.time = getRandomElement(TIMES_OF_DAY);
+    }
+    if (!match.stadium) {
+  // Stadium mapping for Premier League and Polish teams
+  const stadiums = {
+    // Premier League
+    "Arsenal": "Emirates Stadium",
+    "Aston Villa": "Villa Park",
+    "Bournemouth": "Vitality Stadium",
+    "Brentford": "Gtech Community Stadium",
+    "Brighton": "American Express Community Stadium",
+    "Burnley": "Turf Moor",
+    "Chelsea": "Stamford Bridge",
+    "Crystal Palace": "Selhurst Park",
+    "Everton": "Goodison Park",
+    "Fulham": "Craven Cottage",
+    "Leeds": "Elland Road",
+    "Liverpool": "Anfield",
+    "City": "Etihad Stadium",
+    "United": "Old Trafford",
+    "Newcastle": "St James' Park",
+    "Forest": "City Ground",
+    "Sunderland": "Stadium of Light",
+    "Tottenham": "Tottenham Hotspur Stadium",
+    "West Ham": "London Stadium",
+    "Wolves": "Molineux Stadium",
+    
+    // Polish League
+    "Arka Gdynia": "Stadion Miejski",
+    "Bruk-Bet": "Stadion Bruk-Bet Termalica",
+    "Cracovia": "Stadion Cracovii",
+    "GKS Katowice": "Stadion GKS Katowice",
+    "Gornik Zabrze": "Stadion im. Ernesta Pohla",
+    "Jagiellonia": "Stadion Miejski w Białymstoku",
+    "Korona Kielce": "Kolporter Arena",
+    "Lech Poznan": "Stadion Poznań",
+    "Lechia Gdansk": "Stadion Energa Gdańsk",
+    "Legia Warsaw": "Stadion Wojska Polskiego",
+    "Motor Lublin": "Arena Lublin",
+    "Piast Gliwice": "Stadion Miejski w Gliwicach",
+    "Pogon Szczecin": "Stadion Miejski w Szczecinie",
+    "Radomiak Radom": "Stadion im. Braci Czachorów",
+    "Rakow Częstochowa": "Stadion Miejski w Częstochowie",
+    "Widzew Lodz": "Stadion Widzewa Łódź",
+    "Wisla Plock": "Stadion im. Kazimierza Górskiego",
+    "Zaglebie Lubin": "Stadion Zagłębia Lubin"
+  };
+  
+  match.stadium = stadiums[match.home] || `${match.home} Stadium`;
+}
+    return match;
+  };
+
   // --- PHASE TRANSITION LOGIC ---
   if (
     currentPhase === "league" &&
@@ -827,7 +901,6 @@ function render() {
           <div class="max-w-6xl mx-auto">
             <div class="bg-gray-900 border border-gray-700 rounded-2xl flex flex-col items-center justify-center p-8 mb-8">
               <h1 class="text-7xl font-bold mb-2 text-blue-300">FLS</h1>          
-
             </div>
             <div id="comp-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
           </div>`;
@@ -938,6 +1011,7 @@ function render() {
                 <div>
                     <label class="block text-sm font-medium mb-2">Repetitions (1 = single round robin, 2 = double)</label>
                     <input type="number" id="repetitions" min="1" max="4" value="2" class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white">
+                    
                 </div>
             `;
       }
@@ -964,19 +1038,18 @@ function render() {
         .filter((t) => t);
       
       // Validate team count for knockout
-     // Validate team count for knockout
-if (format === "knockout") {
-  if (teams.length < 2) {
-    alert("Please enter at least 2 teams for knockout tournament");
-    return;
-  }
-  // For knockout, we can handle any number of teams, but warn if not power of 2
-  if ((teams.length & (teams.length - 1)) !== 0) {
-    if (!confirm(`You have ${teams.length} teams. For a balanced knockout tournament use 2, 4, 8, 16, 32, or 64`)) {
-      return;
-    }
-  }
-}
+      if (format === "knockout") {
+        if (teams.length < 2) {
+          alert("Please enter at least 2 teams for knockout tournament");
+          return;
+        }
+        // For knockout, we can handle any number of teams, but warn if not power of 2
+        if ((teams.length & (teams.length - 1)) !== 0) {
+          if (!confirm(`You have ${teams.length} teams. For a balanced knockout tournament use 2, 4, 8, 16, 32, or 64`)) {
+            return;
+          }
+        }
+      }
 
       // Create the custom competition
       selectedComp = {
@@ -1054,7 +1127,8 @@ if (format === "knockout") {
   if (isQualifyingPhase) {
     const matches = qualifyingFixtures.filter(
       (m) => m.round === qualifyingRound
-    );
+    ).map(assignMatchDetails);
+    
     const container = document.createElement("div");
     container.className =
       "min-h-screen bg-black text-gray-100 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6";
@@ -1141,7 +1215,11 @@ if (format === "knockout") {
             </div>
             <div class="text-xs text-gray-400 text-center mt-1">Group ${
               m.group
-            }</div>`;
+            }</div>
+            <div class="flex justify-between text-xs text-gray-500 mt-2">
+              <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
+            </div>
+          `;
       const inputs = matchDiv.querySelectorAll("input");
       inputs[0].onchange = (e) => {
         let v = parseInt(e.target.value) || 0;
@@ -1178,13 +1256,15 @@ if (format === "knockout") {
     updateFixtures();
     // Don't return - let the rendering continue to show knockout phase
   }
+  
   const isLeaguePhase =
     currentPhase === "league" &&
     (selectedComp.format === "league" || hasGroups());
   if (isLeaguePhase) {
     const totalLeagueRounds = getTotalLeagueRounds();
     const displayRound = round === 0 ? 1 : round;
-    const matches = fixtures.filter((m) => m.round === displayRound);
+    const matches = fixtures.filter((m) => m.round === displayRound).map(assignMatchDetails);
+    
     const container = document.createElement("div");
     container.className =
       "min-h-screen bg-black text-gray-100 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6";
@@ -1280,6 +1360,9 @@ if (format === "knockout") {
                 ? `<div class="text-xs text-gray-400 text-center mt-1">Group ${m.group}</div>`
                 : ""
             }
+            <div class="flex justify-between text-xs text-gray-500 mt-2">
+              <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
+            </div>
           `;
       const inputs = matchDiv.querySelectorAll("input");
       inputs[0].onchange = (e) => {
@@ -1311,137 +1394,141 @@ if (format === "knockout") {
   }
 
   const isKnockoutPhase = currentPhase === "knockout" || currentPhase === "league_playoffs";
-if (isKnockoutPhase) {
-  console.log("Rendering knockout phase, bracket:", bracket, "playoffRound:", playoffRound);
-  
-  const isLeaguePO = currentPhase === "league_playoffs";
-  const bracketToUse = isLeaguePO ? leaguePlayoffBracket : bracket;
-  const roundToUse = isLeaguePO ? leaguePlayoffRound : playoffRound;
-  const advanceFn = isLeaguePO ? advanceLeaguePlayoff : advancePlayoff;
-  
-  // Get current round matches
-  const currentRoundMatches = bracketToUse.filter(m => m.round === roundToUse);
-  
-  console.log("Current round matches:", currentRoundMatches);
-  
-  // FIX: Prevent infinite recursion by checking if we should finish the tournament
-  if (currentRoundMatches.length === 0) {
-    // Check if we have a completed final match
-    const finalMatch = bracketToUse.find(m => m.round === roundToUse - 1);
-    if (finalMatch && finalMatch.homeScore !== null && finalMatch.awayScore !== null) {
-      // Tournament is legitimately finished
-      currentPhase = "finished";
-    } else {
-      // This is an error state - regenerate bracket
-      console.log("No matches found, regenerating bracket");
-      if (selectedComp.format === "knockout") {
-        bracket = generateKnockoutBracket(getActualTeams());
-        playoffRound = 1;
+  if (isKnockoutPhase) {
+    console.log("Rendering knockout phase, bracket:", bracket, "playoffRound:", playoffRound);
+    
+    const isLeaguePO = currentPhase === "league_playoffs";
+    const bracketToUse = isLeaguePO ? leaguePlayoffBracket : bracket;
+    const roundToUse = isLeaguePO ? leaguePlayoffRound : playoffRound;
+    const advanceFn = isLeaguePO ? advanceLeaguePlayoff : advancePlayoff;
+    
+    // Get current round matches
+    const currentRoundMatches = bracketToUse.filter(m => m.round === roundToUse).map(assignMatchDetails);
+    
+    console.log("Current round matches:", currentRoundMatches);
+    
+    // FIX: Prevent infinite recursion by checking if we should finish the tournament
+    if (currentRoundMatches.length === 0) {
+      // Check if we have a completed final match
+      const finalMatch = bracketToUse.find(m => m.round === roundToUse - 1);
+      if (finalMatch && finalMatch.homeScore !== null && finalMatch.awayScore !== null) {
+        // Tournament is legitimately finished
+        currentPhase = "finished";
+      } else {
+        // This is an error state - regenerate bracket
+        console.log("No matches found, regenerating bracket");
+        if (selectedComp.format === "knockout") {
+          bracket = generateKnockoutBracket(getActualTeams());
+          playoffRound = 1;
+        }
       }
+      // Only render once to prevent recursion
+      if (currentPhase === "finished") {
+        render();
+      } else {
+        // Add a small delay to prevent immediate recursion
+        setTimeout(() => render(), 10);
+      }
+      return;
     }
-    // Only render once to prevent recursion
-    if (currentPhase === "finished") {
-      render();
+
+    // Rest of the knockout rendering code remains the same...
+    const totalRounds = Math.ceil(Math.log2(getKnockoutTeamsCount()));
+    let stageName;
+    
+    if (isLeaguePO) {
+      stageName = roundToUse === 0 ? "Playoff Semi-Finals" : "Playoff Final";
     } else {
-      // Add a small delay to prevent immediate recursion
-      setTimeout(() => render(), 10);
+      const stageNames = {
+        1: totalRounds === 1 ? "Final" : 
+           totalRounds === 2 ? "Semi-finals" : 
+           totalRounds === 3 ? "Quarter-finals" : `Round of ${getKnockoutTeamsCount()}`,
+        [totalRounds]: "Final",
+        [totalRounds - 1]: "Semi-finals",
+        [totalRounds - 2]: "Quarter-finals"
+      };
+      stageName = stageNames[roundToUse] || `Round ${roundToUse}`;
     }
-    return;
-  }
 
-  // Rest of the knockout rendering code remains the same...
-  const totalRounds = Math.ceil(Math.log2(getKnockoutTeamsCount()));
-  let stageName;
-  
-  if (isLeaguePO) {
-    stageName = roundToUse === 0 ? "Playoff Semi-Finals" : "Playoff Final";
-  } else {
-    const stageNames = {
-      1: totalRounds === 1 ? "Final" : 
-         totalRounds === 2 ? "Semi-finals" : 
-         totalRounds === 3 ? "Quarter-finals" : `Round of ${getKnockoutTeamsCount()}`,
-      [totalRounds]: "Final",
-      [totalRounds - 1]: "Semi-finals",
-      [totalRounds - 2]: "Quarter-finals"
-    };
-    stageName = stageNames[roundToUse] || `Round ${roundToUse}`;
-  }
-
-  const container = document.createElement("div");
-  container.className = "min-h-screen bg-black text-gray-100 p-6 flex flex-col items-center";
-  container.innerHTML = `
-    <h1 class="text-4xl font-bold mb-4 text-blue-300">${stageName}</h1>
-    <p class="text-blue-400 mb-2 text-lg">${selectedComp.name}</p>
-    <div class="text-gray-400 mb-6">Round ${roundToUse} of ${totalRounds}</div>
-  `;
-  
-  const matchesDiv = document.createElement("div");
-  matchesDiv.className = "space-y-4 w-full max-w-3xl mb-6";
-  
-  currentRoundMatches.forEach((m) => {
-    const matchDiv = document.createElement("div");
-    matchDiv.className = "bg-gradient-to-br from-blue-900/40 to-blue-900/60 rounded-xl p-5 border border-blue-500/60 shadow-lg";
-    matchDiv.innerHTML = `
-      <div class="flex items-center justify-between">
-        <span class="font-bold text-xl w-2/5 truncate text-right pr-4">${m.home}</span>
-        <div class="flex items-center space-x-4">
-          <input type="number" min="0" max="15" value="${scores[m.id]?.home ?? ""}" 
-                 class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">
-          <span class="font-bold text-2xl text-gray-300">–</span>
-          <input type="number" min="0" max="15" value="${scores[m.id]?.away ?? ""}" 
-                 class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">
-        </div>
-        <span class="font-bold text-xl w-2/5 truncate text-left pl-4">${m.away}</span>
-      </div>
+    const container = document.createElement("div");
+    container.className = "min-h-screen bg-black text-gray-100 p-6 flex flex-col items-center";
+    container.innerHTML = `
+      <h1 class="text-4xl font-bold mb-4 text-blue-300">${stageName}</h1>
+      <p class="text-blue-400 mb-2 text-lg">${selectedComp.name}</p>
+      <div class="text-gray-400 mb-6">Round ${roundToUse} of ${totalRounds}</div>
     `;
     
-    const inputs = matchDiv.querySelectorAll("input");
-    inputs[0].onchange = (e) => {
-      let v = parseInt(e.target.value) || 0;
-      v = Math.max(0, Math.min(15, v));
-      e.target.value = v;
-      scores = {
-        ...scores,
-        [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), home: v },
-      };
-    };
-    inputs[1].onchange = (e) => {
-      let v = parseInt(e.target.value) || 0;
-      v = Math.max(0, Math.min(15, v));
-      e.target.value = v;
-      scores = {
-        ...scores,
-        [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), away: v },
-      };
-    };
+    const matchesDiv = document.createElement("div");
+    matchesDiv.className = "space-y-4 w-full max-w-3xl mb-6";
     
-    matchesDiv.appendChild(matchDiv);
-  });
-  
-  const buttonDiv = document.createElement("div");
-  buttonDiv.className = "flex gap-4 items-center";
-  
-  const isFinalRound = roundToUse === totalRounds;
-  buttonDiv.appendChild(
-    createButton(
-      "success",
-      isFinalRound ? "Finish Tournament" : "Advance to Next Round",
-      "py-3 px-6",
-      advanceFn
-    )
-  );
-  buttonDiv.appendChild(
-    createButton("warning", "Download Save", "py-3 px-6", saveState)
-  );
-  buttonDiv.appendChild(
-    createButton("secondary", "← New Tournament", "py-3 px-6", resetState)
-  );
-  
-  container.appendChild(matchesDiv);
-  container.appendChild(buttonDiv);
-  root.appendChild(container);
-  return;
-}
+    currentRoundMatches.forEach((m) => {
+      const matchDiv = document.createElement("div");
+      matchDiv.className = "bg-gradient-to-br from-blue-900/40 to-blue-900/60 rounded-xl p-5 border border-blue-500/60 shadow-lg";
+      matchDiv.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-xl w-2/5 truncate text-right pr-4">${m.home}</span>
+          <div class="flex items-center space-x-4">
+            <input type="number" min="0" max="15" value="${scores[m.id]?.home ?? ""}" 
+                   class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">
+            <span class="font-bold text-2xl text-gray-300">–</span>
+            <input type="number" min="0" max="15" value="${scores[m.id]?.away ?? ""}" 
+                   class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">
+          </div>
+          <span class="font-bold text-xl w-2/5 truncate text-left pl-4">${m.away}</span>
+        </div>
+        <div class="flex justify-between text-sm text-gray-400 mt-3 pt-2 border-t border-blue-500/30">
+                       <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
+
+        </div>
+      `;
+      
+      const inputs = matchDiv.querySelectorAll("input");
+      inputs[0].onchange = (e) => {
+        let v = parseInt(e.target.value) || 0;
+        v = Math.max(0, Math.min(15, v));
+        e.target.value = v;
+        scores = {
+          ...scores,
+          [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), home: v },
+        };
+      };
+      inputs[1].onchange = (e) => {
+        let v = parseInt(e.target.value) || 0;
+        v = Math.max(0, Math.min(15, v));
+        e.target.value = v;
+        scores = {
+          ...scores,
+          [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), away: v },
+        };
+      };
+      
+      matchesDiv.appendChild(matchDiv);
+    });
+    
+    const buttonDiv = document.createElement("div");
+    buttonDiv.className = "flex gap-4 items-center";
+    
+    const isFinalRound = roundToUse === totalRounds;
+    buttonDiv.appendChild(
+      createButton(
+        "success",
+        isFinalRound ? "Finish Tournament" : "Advance to Next Round",
+        "py-3 px-6",
+        advanceFn
+      )
+    );
+    buttonDiv.appendChild(
+      createButton("warning", "Download Save", "py-3 px-6", saveState)
+    );
+    buttonDiv.appendChild(
+      createButton("secondary", "← New Tournament", "py-3 px-6", resetState)
+    );
+    
+    container.appendChild(matchesDiv);
+    container.appendChild(buttonDiv);
+    root.appendChild(container);
+    return;
+  }
 
   if (currentPhase === "finished") {
     let champion = "Unknown",
@@ -1506,6 +1593,9 @@ if (isKnockoutPhase) {
   root.innerHTML =
     '<div class="min-h-screen bg-black text-gray-100 p-6">Loading or unexpected state...</div>';
 }
+
+// Helper function to get weather emoji
+
 
 // Initial render
 render();
