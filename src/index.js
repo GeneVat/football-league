@@ -822,7 +822,7 @@ function render() {
   // Function to get random elements from array
   const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
   
-  // Function to assign match details (, weather, time)
+  // Function to assign match details ( weather, time)
   const assignMatchDetails = (match) => {
   
     if (!match.weather) {
