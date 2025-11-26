@@ -874,7 +874,10 @@ function render() {
     "Rakow Częstochowa": "Stadion Miejski w Częstochowie",
     "Widzew Lodz": "Stadion Widzewa Łódź",
     "Wisla Plock": "Stadion im. Kazimierza Górskiego",
-    "Zaglebie Lubin": "Stadion Zagłębia Lubin"
+    "Zaglebie Lubin": "Stadion Zagłębia Lubin",
+    // Wimbledon Team
+    "AFC Wimbledon": "Cherry Red Records Stadium",
+
   };
   
   match.stadium = stadiums[match.home] || `${match.home} Stadium`;
