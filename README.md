@@ -10,6 +10,7 @@ Feel free to pull request!
 
 
 
-
-
-
+## Notes
+- Please Star or support in any way
+- Report Bugs please
+- I am trying to decompile the main.js as it is very large 
