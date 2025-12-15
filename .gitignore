@@ -1,0 +1,6 @@
+/.DS_Store
+/dist
+.vscode
+/node_modules
+.env
+/.idea
