@@ -264,6 +264,93 @@ function getPositionStyle(position, competition) {
   return { bg: "bg-gray-800/40", border: "border-gray-700/60"};
 }
 
+// --- WEIGHTED RANDOM RESULT GENERATION ---
+function getTeamStrength(teamName, competition) {
+  // Check if competition has team strengths defined
+  if (competition?.teamStrengths && competition.teamStrengths[teamName]) {
+    return competition.teamStrengths[teamName];
+  }
+  
+  // For custom tournaments or teams without defined strength, use default based on position
+  const actualTeams = getActualTeams();
+  const teamIndex = actualTeams.indexOf(teamName);
+  if (teamIndex !== -1 && actualTeams.length > 0) {
+    // Assign strength based on position (first team = strongest, last = weakest)
+    // Scale from 85 (strongest) to 65 (weakest) for default teams
+    const strengthRange = 85 - 65;
+    const positionRatio = teamIndex / Math.max(1, actualTeams.length - 1);
+    return Math.round(85 - (positionRatio * strengthRange));
+  }
+  
+  // Fallback: average strength
+  return 75;
+}
+
+function generateWeightedResult(homeTeam, awayTeam, competition, allowDraw = true) {
+  const homeStrength = getTeamStrength(homeTeam, competition);
+  const awayStrength = getTeamStrength(awayTeam, competition);
+  
+  // Calculate expected goals based on strength difference
+  // Home advantage adds ~0.3 to home team's expected goals
+  const homeAdvantage = 0.3;
+  const strengthDiff = (homeStrength - awayStrength) / 20; // Normalize to reasonable range
+  const homeExpectedGoals = 1.5 + strengthDiff + homeAdvantage;
+  const awayExpectedGoals = 1.5 - strengthDiff;
+  
+  // Generate goals using Poisson-like distribution (simplified)
+  let homeGoals = Math.max(0, Math.round(
+    homeExpectedGoals + (Math.random() - 0.5) * 2.5
+  ));
+  let awayGoals = Math.max(0, Math.round(
+    awayExpectedGoals + (Math.random() - 0.5) * 2.5
+  ));
+  
+  // Ensure at least one goal in most matches (more realistic)
+  if (homeGoals === 0 && awayGoals === 0) {
+    if (Math.random() < 0.5) {
+      homeGoals = 1;
+      awayGoals = 0;
+    } else {
+      homeGoals = 0;
+      awayGoals = 1;
+    }
+  }
+  
+  // For knockout matches, ensure there's a winner (no draws)
+  if (!allowDraw && homeGoals === awayGoals) {
+    // Determine winner based on strength (weighted probability)
+    const homeWinProb = 0.5 + (strengthDiff * 0.15); // Adjust probability based on strength
+    if (Math.random() < homeWinProb) {
+      homeGoals += 1;
+    } else {
+      awayGoals += 1;
+    }
+  }
+  
+  // Cap at 15 goals (max input value)
+  return {
+    home: Math.min(15, homeGoals),
+    away: Math.min(15, awayGoals)
+  };
+}
+
+function autoFillCurrentRoundResults(matches, isKnockout = false) {
+  if (!matches || matches.length === 0) return;
+  
+  matches.forEach((match) => {
+    // Only fill if not already filled, or allow overwriting empty scores
+    if (!scores[match.id] || scores[match.id].home === undefined || scores[match.id].away === undefined) {
+      const result = generateWeightedResult(match.home, match.away, selectedComp, !isKnockout);
+      scores = {
+        ...scores,
+        [match.id]: result
+      };
+    }
+  });
+  
+  render();
+}
+
 // --- UI UTILITIES ---
 function createButton(variant, text, className, onClick, disabled = false) {
   const variants = {
@@ -289,26 +376,20 @@ function createButton(variant, text, className, onClick, disabled = false) {
 function createLeagueTableRow(team, position, competition) {
   const style = getPositionStyle(position, competition);
   const row = document.createElement("div");
-  row.className = `flex items-center justify-between p-2 rounded-lg ${style.bg} border ${style.border}`;
+  row.className = `grid grid-cols-[auto_1fr_auto_auto_auto] sm:grid-cols-[auto_1fr_auto_auto_auto_auto] md:grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] gap-2 items-center p-2 rounded-lg ${style.bg} border ${style.border} w-full`;
   row.title = style.label;
 
-  const teamInfo = document.createElement("div");
-  teamInfo.className = "flex items-center space-x-3 flex-1 min-w-0";
-  teamInfo.innerHTML = `
+  row.innerHTML = `
         <span class="text-xs w-6 text-center font-bold">${position}</span>
-        <span class="text-sm font-medium truncate">${team.name}</span>
+        <span class="text-sm font-medium truncate min-w-0">${team.name}</span>
+        <span class="text-xs font-mono w-8 text-center">${team.played}</span>
+        <span class="text-xs font-mono w-8 text-center">${team.wins}</span>
+        <span class="text-xs font-mono w-12 text-center hidden sm:inline">${team.gf}-${team.ga}</span>
+        <span class="text-xs font-mono w-8 text-center hidden md:inline">${team.draws}</span>
+        <span class="text-xs font-mono w-8 text-center hidden md:inline">${team.losses}</span>
+        <span class="text-xs font-mono w-10 text-center font-bold text-white">${team.pts}</span>
       `;
 
-  const stats = document.createElement("div");
-  stats.className = "flex items-center space-x-4 text-xs font-mono";
-  stats.innerHTML = `
-        <span class="w-6 text-center">${team.played}</span> <span class="w-6 text-center">${team.wins}</span>
-        <span class="w-6 text-center">${team.draws}</span> <span class="w-6 text-center">${team.losses}</span>
-        <span class="w-8 text-center">${team.gf}-${team.ga}</span> <span class="w-8 text-center font-bold text-white">${team.pts}</span>
-      `;
-
-  row.appendChild(teamInfo);
-  row.appendChild(stats);
   return row;
 }
 
@@ -904,7 +985,7 @@ function render() {
           <div class="max-w-6xl mx-auto">
             <div class="bg-gray-900 border border-gray-700 rounded-2xl flex flex-col items-center justify-center p-8 mb-8">
               <h1 class="text-7xl font-bold mb-2 text-blue-300">FLS</h1>          
-              <h2 class="text-2xl font-bold mb-2 text-blue-500">v1</h2>          
+              <h2 class="text-2xl font-bold mb-2 text-blue-500">v1.1</h2>          
             </div>
             <div id="comp-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
           </div>`;
@@ -1151,14 +1232,21 @@ function render() {
       (g) => stats.filter((t) => t.group === g)
     );
     const tableContent = document.createElement("div");
-    tableContent.className = "space-y-4 overflow-y-auto pr-2 flex-grow";
+    tableContent.className = "space-y-4 overflow-y-auto pr-2 flex-grow min-w-0";
     tables.forEach((groupStats) => {
       const groupDiv = document.createElement("div");
       groupDiv.className =
-        "space-y-2 bg-gray-800/70 rounded-xl border border-gray-700 p-3 shadow-inner";
+        "space-y-2 bg-gray-800/70 rounded-xl border border-gray-700 p-3 shadow-inner min-w-0 overflow-x-auto";
       groupDiv.innerHTML = `<h4 class="text-sm font-bold text-blue-300">Group ${groupStats[0].group}</h4>
-              <div class="text-left text-xs font-mono uppercase text-gray-400 flex justify-between px-2 mb-2">
-                <span class="flex-1 ml-12">Team</span><div class="flex space-x-4"><span class="w-6 text-center">P</span><span class="w-6 text-center">W</span><span class="w-6 text-center">D</span><span class="w-6 text-center">L</span><span class="w-8 text-center">G/D</span><span class="w-8 text-center">Pts</span></div>
+              <div class="grid grid-cols-[auto_1fr_auto_auto_auto] sm:grid-cols-[auto_1fr_auto_auto_auto_auto] md:grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] gap-2 text-xs font-mono uppercase text-gray-400 px-2 mb-2">
+                <span></span>
+                <span>Team</span>
+                <span class="w-8 text-center">GP</span>
+                <span class="w-8 text-center">W</span>
+                <span class="w-12 text-center hidden sm:inline">G/D</span>
+                <span class="w-8 text-center hidden md:inline">D</span>
+                <span class="w-8 text-center hidden md:inline">L</span>
+                <span class="w-10 text-center">Pts</span>
               </div>`;
       groupStats.forEach((t, i) =>
         groupDiv.appendChild(
@@ -1189,6 +1277,14 @@ function render() {
         "Advance Qualifying Round",
         "w-full py-3 text-lg",
         advanceQualifying
+      )
+    );
+    buttonDiv.appendChild(
+      createButton(
+        "primary",
+        "Auto-Fill",
+        "w-full py-2 text-sm",
+        () => autoFillCurrentRoundResults(matches)
       )
     );
     buttonDiv.appendChild(
@@ -1280,16 +1376,25 @@ function render() {
     }</h3>`;
     const tables = computeTables();
     const tableContent = document.createElement("div");
-    tableContent.className = "space-y-4 overflow-y-auto pr-2 flex-grow";
+    tableContent.className = "space-y-4 overflow-y-auto pr-2 flex-grow min-w-0";
     if (tables.length > 0 && tables[0].length > 0) {
       tables.forEach((groupStats) => {
         const groupDiv = document.createElement("div");
         groupDiv.className =
-          "space-y-2 bg-gray-800/70 rounded-xl border border-gray-700 p-3 shadow-inner";
+          "space-y-2 bg-gray-800/70 rounded-xl border border-gray-700 p-3 shadow-inner min-w-0 overflow-x-auto";
         if (hasGroups()) {
           groupDiv.innerHTML = `<h4 class="text-sm font-bold text-blue-300">Group ${groupStats[0].group}</h4>`;
         }
-        groupDiv.innerHTML += `<div class="text-left text-xs font-mono uppercase text-gray-400 flex justify-between px-2 mb-2"><span class="flex-1 ml-12">Team</span><div class="flex space-x-4"><span class="w-6 text-center">P</span><span class="w-6 text-center">W</span><span class="w-6 text-center">D</span><span class="w-6 text-center">L</span><span class="w-8 text-center">G/D</span><span class="w-8 text-center">Pts</span></div></div>`;
+        groupDiv.innerHTML += `<div class="grid grid-cols-[auto_1fr_auto_auto_auto] sm:grid-cols-[auto_1fr_auto_auto_auto_auto] md:grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] gap-2 text-xs font-mono uppercase text-gray-400 px-2 mb-2">
+                <span></span>
+                <span>Team</span>
+                <span class="w-8 text-center">GP</span>
+                <span class="w-8 text-center">W</span>
+                <span class="w-12 text-center hidden sm:inline">G/D</span>
+                <span class="w-8 text-center hidden md:inline">D</span>
+                <span class="w-8 text-center hidden md:inline">L</span>
+                <span class="w-10 text-center">Pts</span>
+              </div>`;
         groupStats.forEach((t, i) =>
           groupDiv.appendChild(createLeagueTableRow(t, i + 1, selectedComp))
         );
@@ -1326,6 +1431,14 @@ function render() {
           "Advance Round",
           "w-full py-3 text-lg",
           advanceLeague
+        )
+      );
+      buttonDiv.appendChild(
+        createButton(
+          "primary",
+          "🎲 Auto-Fill Results (Weighted)",
+          "w-full py-2 text-sm",
+          () => autoFillCurrentRoundResults(matches)
         )
       );
     }
@@ -1510,23 +1623,38 @@ function render() {
     });
     
     const buttonDiv = document.createElement("div");
-    buttonDiv.className = "flex gap-4 items-center";
+    buttonDiv.className = "flex flex-col gap-3 items-center w-full max-w-3xl";
     
     const isFinalRound = roundToUse === totalRounds;
-    buttonDiv.appendChild(
+    const primaryButtonDiv = document.createElement("div");
+    primaryButtonDiv.className = "flex gap-4 w-full";
+    primaryButtonDiv.appendChild(
       createButton(
         "success",
         isFinalRound ? "Finish Tournament" : "Advance to Next Round",
-        "py-3 px-6",
+        "flex-1 py-3",
         advanceFn
       )
     );
-    buttonDiv.appendChild(
-      createButton("warning", "Download Save", "py-3 px-6", saveState)
+    primaryButtonDiv.appendChild(
+      createButton(
+        "primary",
+        "🎲 Auto-Fill",
+        "py-3 px-6",
+        () => autoFillCurrentRoundResults(currentRoundMatches, true)
+      )
     );
-    buttonDiv.appendChild(
-      createButton("secondary", "← New Tournament", "py-3 px-6", resetState)
+    buttonDiv.appendChild(primaryButtonDiv);
+    
+    const secondaryButtonDiv = document.createElement("div");
+    secondaryButtonDiv.className = "flex gap-4 w-full";
+    secondaryButtonDiv.appendChild(
+      createButton("warning", "Download Save", "flex-1 py-3", saveState)
     );
+    secondaryButtonDiv.appendChild(
+      createButton("secondary", "← New Tournament", "flex-1 py-3", resetState)
+    );
+    buttonDiv.appendChild(secondaryButtonDiv);
     
     container.appendChild(matchesDiv);
     container.appendChild(buttonDiv);
@@ -1579,11 +1707,20 @@ function render() {
       finalTables.forEach((groupStats) => {
         const groupDiv = document.createElement("div");
         groupDiv.className =
-          "space-y-2 bg-gray-800/70 rounded-xl border border-gray-700 p-3 shadow-inner mb-4";
+          "space-y-2 bg-gray-800/70 rounded-xl border border-gray-700 p-3 shadow-inner mb-4 min-w-0 overflow-x-auto";
         if (hasGroups()) {
           groupDiv.innerHTML = `<h4 class="text-sm font-bold text-blue-300">Group ${groupStats[0].group}</h4>`;
         }
-        groupDiv.innerHTML += `<div class="text-left text-xs font-mono uppercase text-gray-400 flex justify-between px-2 mb-2"><span class="flex-1 ml-12">Team</span><div class="flex space-x-4"><span class="w-6 text-center">P</span><span class="w-6 text-center">W</span><span class="w-6 text-center">D</span><span class="w-6 text-center">L</span><span class="w-8 text-center">G/D</span><span class="w-8 text-center">Pts</span></div></div>`;
+        groupDiv.innerHTML += `<div class="grid grid-cols-[auto_1fr_auto_auto_auto] sm:grid-cols-[auto_1fr_auto_auto_auto_auto] md:grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] gap-2 text-xs font-mono uppercase text-gray-400 px-2 mb-2">
+                <span></span>
+                <span>Team</span>
+                <span class="w-8 text-center">GP</span>
+                <span class="w-8 text-center">W</span>
+                <span class="w-12 text-center hidden sm:inline">G/D</span>
+                <span class="w-8 text-center hidden md:inline">D</span>
+                <span class="w-8 text-center hidden md:inline">L</span>
+                <span class="w-10 text-center">Pts</span>
+              </div>`;
         groupStats.forEach((t, i) =>
           groupDiv.appendChild(createLeagueTableRow(t, i + 1, selectedComp))
         );

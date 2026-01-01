@@ -28,6 +28,12 @@ export const COMPETITIONS = [
       "West Ham",
       "Wolves"
     ], // based on 2025-26 list. :contentReference[oaicite:0]{index=0}
+    teamStrengths: {
+      "Arsenal": 92, "Liverpool": 90, "City": 95, "United": 88, "Tottenham": 87,
+      "Newcastle": 85, "Chelsea": 84, "Aston Villa": 83, "Brighton": 82, "West Ham": 80,
+      "Crystal Palace": 78, "Fulham": 77, "Brentford": 76, "Wolves": 75, "Everton": 74,
+      "Leeds": 73, "Forest": 72, "Bournemouth": 71, "Burnley": 70, "Sunderland": 69
+    },
     positionStyles: {
       1: { bg: "bg-yellow-900/40", border: "border-yellow-500/60", icon: "🏆", label: "Champion" },
       "2-5": { bg: "bg-blue-900/40", border: "border-blue-500/60", icon: "🇪🇺", label: "Champions League" },
@@ -54,9 +60,14 @@ export const COMPETITIONS = [
       "Livingston",
       "Motherwell",
       "Rangers",
-      "Ross County",
+      "Falkirk",
       "St Mirren"
     ],
+    teamStrengths: {
+      "Celtic": 88, "Rangers": 87, "Hearts": 78, "Aberdeen": 76, "Hibernian": 74,
+      "Motherwell": 72, "Kilmarnock": 71, "St Mirren": 70, "Dundee Utd": 69, "Dundee": 68,
+      "Livingston": 67, "Falkirk": 66
+    },
     positionStyles: {
       1: { bg: "bg-yellow-900/40", border: "border-yellow-500/60", icon: "🏆", label: "Champion" },
       2: { bg: "bg-blue-900/40", border: "border-blue-500/60", icon: "🇪🇺", label: "Champions League Qual." },
@@ -98,6 +109,13 @@ export const COMPETITIONS = [
       "West Brom",
       "Wrexham"
     ], // promotion/relegation updates noted. :contentReference[oaicite:1]{index=1}
+    teamStrengths: {
+      "Leicester": 82, "Southampton": 80, "Ipswich": 79, "Leeds": 78, "Norwich": 77,
+      "West Brom": 76, "Watford": 75, "Middlesbrough": 74, "Coventry": 73, "Swansea": 72,
+      "Hull": 71, "Preston": 70, "Millwall": 69, "Stoke": 68, "Bristol City": 67,
+      "QPR": 66, "Blackburn": 65, "Sheff Utd": 64, "Birmingham": 63, "Derby": 62,
+      "Oxford Utd": 61, "Portsmouth": 60, "Sheff Wed": 59, "Charlton": 58, "Wrexham": 57
+    },
     positionStyles: {
       "1-2": { bg: "bg-yellow-900/40", border: "border-yellow-500/60", icon: "⬆️", label: "Promoted to Premier" },
       "3-6": { bg: "bg-blue-900/40", border: "border-blue-500/60", icon: "🔄", label: "Playoffs for Promotion" },
@@ -137,6 +155,13 @@ export const COMPETITIONS = [
       "Wigan",
       "Wycombe"
     ], // verified list forthcoming. :contentReference[oaicite:2]{index=2}
+    teamStrengths: {
+      "Cardiff": 72, "Huddersfield": 71, "Luton": 70, "Reading": 69, "Barnsley": 68,
+      "Blackpool": 67, "Bolton": 66, "Peterborough": 65, "Plymouth": 64, "Wigan": 63,
+      "Stockport": 62, "Stevenage": 61, "Wycombe": 60, "Mansfield": 59, "Northampton": 58,
+      "Lincoln": 57, "Leyton Orient": 56, "Rotherham": 55, "Port Vale": 54, "Exeter": 53,
+      "Doncaster": 52, "Bradford": 51, "Burton": 50, "AFC Wimbledon": 49
+    },
     positionStyles: {
       "1-2": { bg: "bg-yellow-900/40", border: "border-yellow-500/60", icon: "⬆️", label: "Promoted to Championship" },
       "3-6": { bg: "bg-blue-900/40", border: "border-blue-500/60", icon: "🔄", label: "Playoffs for Promotion" },
@@ -172,6 +197,12 @@ export const COMPETITIONS = [
       "Leganes",
       "Real Valladolid"
     ], // as per your original list (no changes sourced)
+    teamStrengths: {
+      "Real Madrid": 95, "Barcelona": 93, "Atletico Madrid": 90, "Girona": 85, "Athletic Bilbao": 84,
+      "Real Sociedad": 83, "Villarreal": 82, "Real Betis": 81, "Valencia": 80, "Sevilla": 79,
+      "Getafe": 77, "Osasuna": 76, "Rayo Vallecano": 75, "Las Palmas": 74, "Mallorca": 73,
+      "Celta Vigo": 72, "Alaves": 71, "Espanyol": 70, "Leganes": 69, "Real Valladolid": 68
+    },
     positionStyles: {
       1: { bg: "bg-yellow-900/40", border: "border-yellow-500/60", icon: "🏆", label: "Champion" },
       "2-4": { bg: "bg-blue-900/40", border: "border-blue-500/60", icon: "🇪🇺", label: "Champions League" },
@@ -223,6 +254,15 @@ export const COMPETITIONS = [
       "Celtic",
       "Shakhtar Donetsk"
     ],
+    teamStrengths: {
+      "Real Madrid": 96, "City": 95, "Bayern Munich": 94, "Barcelona": 93, "Arsenal": 92,
+      "Liverpool": 91, "Inter Milan": 90, "PSG": 89, "Atletico Madrid": 88, "Dortmund": 87,
+      "AC Milan": 86, "Juventus": 85, "Bayer Leverkusen": 84, "Napoli": 83, "United": 82,
+      "Tottenham": 81, "Chelsea": 80, "Newcastle": 79, "Atalanta": 78, "Girona": 77,
+      "Athletic Bilbao": 76, "Benfica": 75, "Sporting CP": 74, "PSV": 73, "Feyenoord": 72,
+      "Ajax": 71, "Marseille": 70, "Monaco": 69, "Galatasaray": 68, "Celtic": 67,
+      "Stuttgart": 66, "Shakhtar Donetsk": 65
+    },
     positionStyles: {
       "1-2": { bg: "bg-blue-900/40", border: "border-blue-500/60", icon: "⚡", label: "Qualified" },
       "3-4": { bg: "bg-red-900/40", border: "border-red-500/60", icon: "❌", label: "Eliminated" },
@@ -252,9 +292,16 @@ export const COMPETITIONS = [
       "Koln",
       "Bochum",
       "Mainz",
+      
       "Darmstadt",
       "Heidenheim"
     ],
+    teamStrengths: {
+      "Bayern Munich": 94, "Bayer Leverkusen": 89, "Dortmund": 87, "RB Leipzig": 86, "Stuttgart": 85,
+      "Frankfurt": 83, "Freiburg": 82, "Wolfsburg": 81, "Union Berlin": 80, "Monchengladbach": 79,
+      "Augsburg": 78, "Hoffenheim": 77, "Werder Bremen": 76, "Koln": 75, "Mainz": 74,
+      "Bochum": 73, "Heidenheim": 72, "Darmstadt": 71
+    },
     positionStyles: {
       1: { bg: "bg-yellow-900/40", border: "border-yellow-500/60", icon: "🏆", label: "Champion" },
       "2-4": { bg: "bg-blue-900/40", border: "border-blue-500/60", icon: "🇪🇺", label: "Champions League" },
@@ -368,6 +415,12 @@ export const COMPETITIONS = [
       "Wisla Plock",
       "Zaglebie Lubin"
     ],
+    teamStrengths: {
+      "Legia Warsaw": 82, "Lech Poznan": 80, "Rakow Częstochowa": 79, "Jagiellonia": 78, "Pogon Szczecin": 77,
+      "Gornik Zabrze": 76, "Lechia Gdansk": 75, "Piast Gliwice": 74, "Cracovia": 73, "Widzew Lodz": 72,
+      "Radomiak Radom": 71, "Zaglebie Lubin": 70, "Motor Lublin": 69, "GKS Katowice": 68, "Korona Kielce": 67,
+      "Wisla Plock": 66, "Arka Gdynia": 65, "Bruk-Bet": 64
+    },
     positionStyles: {
       1: { bg: "bg-yellow-900/40", border: "border-yellow-500/60", icon: "🏆", label: "Champion" },
       2: { bg: "bg-blue-900/40", border: "border-blue-500/60", icon: "🇪🇺", label: "Champions League" },
