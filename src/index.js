@@ -468,6 +468,15 @@ fileInput.addEventListener("change", (event) => {
       qualifyingRound = savedState.qualifyingRound;
       leaguePlayoffBracket = savedState.leaguePlayoffBracket;
       leaguePlayoffRound = savedState.leaguePlayoffRound;
+      // Backfill teamStrengths for custom comps from old saves
+      if (selectedComp?.id === "custom" && selectedComp.teams?.length && !selectedComp.teamStrengths) {
+        const strengthRange = 85 - 65;
+        selectedComp.teamStrengths = {};
+        selectedComp.teams.forEach((name, i) => {
+          const ratio = selectedComp.teams.length === 1 ? 0 : i / (selectedComp.teams.length - 1);
+          selectedComp.teamStrengths[name] = Math.round(85 - ratio * strengthRange);
+        });
+      }
       render();
     } catch (error) {
       console.error("Failed to load game:", error);
@@ -1023,10 +1032,8 @@ function render() {
       }
     );
     customButton.innerHTML = `<div class="text-7xl"></div><span class="text-center">Create Custom</span>`;
-    compGrid.appendChild(customButton);
-    root.appendChild(container);
-
     customButton2.innerHTML = `<div class="text-7xl"></div><span class="text-center">Load Save</span>`;
+    compGrid.appendChild(customButton);
     compGrid.appendChild(customButton2);
     root.appendChild(container);
     return;
@@ -1057,7 +1064,8 @@ function render() {
                     
                     <div>
                         <label class="block text-sm font-medium mb-2">Teams (one per line)</label>
-                        <textarea id="team-list" rows="8" class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white" placeholder="Team 1&#10;Team 2&#10;Team 3&#10;..."></textarea>
+                        <p class="text-xs text-gray-400 mb-1">Optional: add a comma and strength (50–99), e.g. <code class="bg-gray-700 px-1 rounded">Team A, 85</code>. Otherwise strength is set by order.</p>
+                        <textarea id="team-list" rows="8" class="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white" placeholder="Team 1&#10;Team 2, 72&#10;Team 3&#10;..."></textarea>
                     </div>
                     
                     <div id="format-options" class="space-y-4">
@@ -1117,10 +1125,33 @@ function render() {
         return;
       }
 
+      // Parse lines as "TeamName" or "TeamName, 85"
+      const teamStrengths = {};
       const teams = teamText
         .split("\n")
-        .map((t) => t.trim())
-        .filter((t) => t);
+        .map((line) => line.trim())
+        .filter((line) => line)
+        .map((line) => {
+          const comma = line.lastIndexOf(",");
+          if (comma !== -1) {
+            const name = line.slice(0, comma).trim();
+            const num = parseInt(line.slice(comma + 1).trim(), 10);
+            if (!isNaN(num) && name) {
+              teamStrengths[name] = Math.max(50, Math.min(99, num));
+              return name;
+            }
+          }
+          return line;
+        });
+
+      // Fill missing strengths by order (first = 85, last = 65)
+      const strengthRange = 85 - 65;
+      teams.forEach((name, i) => {
+        if (teamStrengths[name] == null && teams.length > 0) {
+          const ratio = teams.length === 1 ? 0 : i / (teams.length - 1);
+          teamStrengths[name] = Math.round(85 - ratio * strengthRange);
+        }
+      });
       
       // Validate team count for knockout
       if (format === "knockout") {
@@ -1140,9 +1171,11 @@ function render() {
       selectedComp = {
         id: "custom",
         name: name,
+        emoji: "",
         format: format,
         teamCount: teams.length,
         teams: teams,
+        teamStrengths,
         positionStyles: {
           1: {
             bg: "bg-yellow-900/40",
