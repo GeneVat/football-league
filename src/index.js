@@ -334,21 +334,24 @@ function generateWeightedResult(homeTeam, awayTeam, competition, allowDraw = tru
   };
 }
 
-function autoFillCurrentRoundResults(matches, isKnockout = false) {
+function isUserMatch(match) {
+  return gameMode === "team" && userTeam && (match.home === userTeam || match.away === userTeam);
+}
+
+function autoFillCurrentRoundResults(matches, isKnockout = false, onlyOtherMatches = false) {
   if (!matches || matches.length === 0) return;
-  
   matches.forEach((match) => {
-    // Only fill if not already filled, or allow overwriting empty scores
+    if (onlyOtherMatches && isUserMatch(match)) return;
     if (!scores[match.id] || scores[match.id].home === undefined || scores[match.id].away === undefined) {
       const result = generateWeightedResult(match.home, match.away, selectedComp, !isKnockout);
-      scores = {
-        ...scores,
-        [match.id]: result
-      };
+      scores = { ...scores, [match.id]: result };
     }
   });
-  
   render();
+}
+
+function autoFillNonUserMatches(matches, isKnockout = false) {
+  autoFillCurrentRoundResults(matches, isKnockout, true);
 }
 
 // --- UI UTILITIES ---
@@ -394,7 +397,7 @@ function createLeagueTableRow(team, position, competition) {
 }
 
 // --- STATE ---
-let currentPhase = "menu"; // menu, custom_creation, team_selection, qualifying, league, league_playoffs, knockout, finished
+let currentPhase = "menu"; // menu, custom_creation, mode_selection, team_selection, qualifying, league, league_playoffs, knockout, finished
 let selectedComp = null;
 let fixtures = [];
 let round = 0;
@@ -407,6 +410,8 @@ let qualifyingFixtures = [];
 let qualifyingRound = 0;
 let leaguePlayoffBracket = [];
 let leaguePlayoffRound = 0;
+let gameMode = "league"; // "league" | "team" - league = enter all scores, team = only your team's matches
+let userTeam = null; // in team mode, the team the user manages
 
 // --- SAVE/LOAD FUNCTIONS ---
 function saveState() {
@@ -424,6 +429,8 @@ function saveState() {
     qualifyingRound,
     leaguePlayoffBracket,
     leaguePlayoffRound,
+    gameMode,
+    userTeam,
   };
   try {
     const jsonString = JSON.stringify(stateToSave, null, 2);
@@ -468,6 +475,8 @@ fileInput.addEventListener("change", (event) => {
       qualifyingRound = savedState.qualifyingRound;
       leaguePlayoffBracket = savedState.leaguePlayoffBracket;
       leaguePlayoffRound = savedState.leaguePlayoffRound;
+      gameMode = savedState.gameMode ?? "league";
+      userTeam = savedState.userTeam ?? null;
       // Backfill teamStrengths for custom comps from old saves
       if (selectedComp?.id === "custom" && selectedComp.teams?.length && !selectedComp.teamStrengths) {
         const strengthRange = 85 - 65;
@@ -535,6 +544,8 @@ function resetState() {
   qualifyingRound = 0;
   leaguePlayoffBracket = [];
   leaguePlayoffRound = 0;
+  gameMode = "league";
+  userTeam = null;
   currentPhase = "menu";
   render();
 }
@@ -1007,7 +1018,7 @@ function render() {
         "h-35 flex flex-col items-center justify-center text-xl space-y-2 hover:scale-110",
         () => {
           selectedComp = comp;
-          currentPhase = "league";
+          currentPhase = "mode_selection";
           render();
         }
       );
@@ -1223,12 +1234,90 @@ function render() {
         selectedComp.rounds = 0;
       }
 
-      currentPhase = "league";
+      currentPhase = "mode_selection";
       render();
     };
 
     container.querySelector("#back-to-menu").onclick = () => {
       currentPhase = "menu";
+      render();
+    };
+
+    root.appendChild(container);
+    return;
+  }
+
+  if (currentPhase === "mode_selection") {
+    const actualTeams = getActualTeams();
+    const container = document.createElement("div");
+    container.className = "min-h-screen bg-black text-gray-100 p-6 flex flex-col items-center justify-center";
+    container.innerHTML = `
+      <div class="max-w-md w-full bg-gray-900 border border-gray-700 rounded-2xl p-8">
+        <h1 class="text-2xl font-bold mb-2 text-blue-300">${selectedComp.emoji || ""} ${selectedComp.name}</h1>
+        <p class="text-gray-400 mb-6">Choose how to play</p>
+        <div id="mode-buttons" class="space-y-3 mb-6"></div>
+        <div id="team-picker" class="hidden space-y-3 mb-6">
+          <p class="text-sm font-medium text-gray-300">Select your team</p>
+          <div id="team-list" class="flex flex-wrap gap-2"></div>
+        </div>
+        <button type="button" id="confirm-mode" class="hidden w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-medium">Continue</button>
+        <button type="button" id="back-from-mode" class="mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-xl font-medium">Back</button>
+      </div>
+    `;
+    const modeButtons = container.querySelector("#mode-buttons");
+    const teamPicker = container.querySelector("#team-picker");
+    const teamList = container.querySelector("#team-list");
+    const confirmBtn = container.querySelector("#confirm-mode");
+    let pendingUserTeam = null;
+
+    const goToLeague = () => {
+      if (gameMode === "team") userTeam = pendingUserTeam;
+      currentPhase = "league";
+      updateFixtures();
+      render();
+    };
+
+    const modeLeague = createButton("secondary", "League mode — Enter all scores yourself", "w-full py-3 text-left", () => {
+      gameMode = "league";
+      userTeam = null;
+      goToLeague();
+    });
+    const modeTeam = createButton("secondary", "Team mode — Only enter your team's matches; others auto-generated", "w-full py-3 text-left", () => {
+      gameMode = "team";
+      teamPicker.classList.remove("hidden");
+      confirmBtn.classList.remove("hidden");
+      actualTeams.forEach((name) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `px-4 py-2 rounded-lg border font-medium transition-all ${pendingUserTeam === name ? "bg-blue-600 border-blue-500 text-white" : "bg-gray-800 border-gray-600 text-gray-200 hover:border-gray-500"}`;
+        btn.textContent = name;
+        btn.onclick = () => {
+          pendingUserTeam = name;
+          teamList.querySelectorAll("button").forEach((b) => {
+            b.className = `px-4 py-2 rounded-lg border font-medium transition-all ${b.textContent === name ? "bg-blue-600 border-blue-500 text-white" : "bg-gray-800 border-gray-600 text-gray-200 hover:border-gray-500"}`;
+          });
+        };
+        teamList.appendChild(btn);
+      });
+    });
+
+    modeButtons.appendChild(modeLeague);
+    modeButtons.appendChild(modeTeam);
+
+    confirmBtn.onclick = () => {
+      if (gameMode === "team" && !pendingUserTeam) {
+        alert("Please select your team.");
+        return;
+      }
+      goToLeague();
+    };
+
+    container.querySelector("#back-from-mode").onclick = () => {
+      if (selectedComp?.id === "custom") {
+        currentPhase = "custom_creation";
+      } else {
+        currentPhase = "menu";
+      }
       render();
     };
 
@@ -1246,7 +1335,14 @@ function render() {
     const matches = qualifyingFixtures.filter(
       (m) => m.round === qualifyingRound
     ).map(assignMatchDetails);
-    
+    if (gameMode === "team" && userTeam) {
+      matches.forEach((m) => {
+        if (!isUserMatch(m) && (!scores[m.id] || scores[m.id].home === undefined)) {
+          const result = generateWeightedResult(m.home, m.away, selectedComp, true);
+          scores = { ...scores, [m.id]: result };
+        }
+      });
+    }
     const container = document.createElement("div");
     container.className =
       "min-h-screen bg-black text-gray-100 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6";
@@ -1301,7 +1397,7 @@ function render() {
     const fixtureContainer = document.createElement("div");
     fixtureContainer.className =
       "bg-gray-900 border border-gray-700 rounded-2xl p-6 flex flex-col shadow-xl";
-    fixtureContainer.innerHTML = `<div class="text-center mb-4"><h1 class="text-2xl font-bold text-blue-300">${selectedComp.emoji} ${selectedComp.name}</h1><p class="text-gray-400 text-lg">Qualifying Round</p></div><h3 class="text-xl font-bold mb-4 text-blue-300">Fixtures: Round ${qualifyingRound}</h3>`;
+    fixtureContainer.innerHTML = `<div class="text-center mb-4"><h1 class="text-2xl font-bold text-blue-300">${selectedComp.emoji || ""} ${selectedComp.name}</h1>${gameMode === "team" && userTeam ? `<p class="text-sm text-blue-400/90">Managing: <strong>${userTeam}</strong></p>` : ""}<p class="text-gray-400 text-lg">Qualifying Round</p></div><h3 class="text-xl font-bold mb-4 text-blue-300">Fixtures: Round ${qualifyingRound}</h3>`;
     const buttonDiv = document.createElement("div");
     buttonDiv.className = "flex flex-col space-y-3 mb-4";
     buttonDiv.appendChild(
@@ -1312,14 +1408,15 @@ function render() {
         advanceQualifying
       )
     );
-    buttonDiv.appendChild(
-      createButton(
-        "primary",
-        "Auto-Fill",
-        "w-full py-2 text-sm",
-        () => autoFillCurrentRoundResults(matches)
-      )
-    );
+    if (gameMode === "team" && userTeam) {
+      buttonDiv.appendChild(
+        createButton("primary", "🎲 Auto-Fill Other Matches", "w-full py-2 text-sm", () => autoFillNonUserMatches(matches))
+      );
+    } else {
+      buttonDiv.appendChild(
+        createButton("primary", "Auto-Fill", "w-full py-2 text-sm", () => autoFillCurrentRoundResults(matches))
+      );
+    }
     buttonDiv.appendChild(
       createButton("warning", "Download Save", "w-full py-2", saveState)
     );
@@ -1329,49 +1426,47 @@ function render() {
     const matchesDiv = document.createElement("div");
     matchesDiv.className = "space-y-3 overflow-y-auto pr-2 mb-4 flex-grow";
     matches.forEach((m) => {
+      const isUser = isUserMatch(m);
+      const showInputs = gameMode !== "team" || isUser;
+      const homeScore = scores[m.id]?.home ?? "";
+      const awayScore = scores[m.id]?.away ?? "";
+      const scoreBlock = showInputs
+        ? `<input type="number" min="0" max="15" value="${homeScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600">
+                <span class="text-xl font-bold text-gray-400">-</span>
+                <input type="number" min="0" max="15" value="${awayScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600">`
+        : `<span class="text-lg font-mono font-bold">${homeScore} – ${awayScore}</span>`;
       const matchDiv = document.createElement("div");
       matchDiv.className =
-        "bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 shadow-lg border border-gray-700";
+        "bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 shadow-lg border border-gray-700" + (isUser ? " ring-2 ring-green-400/60" : "");
       matchDiv.innerHTML = `
             <div class="flex items-center justify-between text-base font-medium">
               <span class="w-1/3 truncate text-right pr-2">${m.home}</span>
-              <div class="flex items-center space-x-2">
-                <input type="number" min="0" max="15" value="${
-                  scores[m.id]?.home ?? ""
-                }" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600">
-                <span class="text-xl font-bold text-gray-400">-</span>
-                <input type="number" min="0" max="15" value="${
-                  scores[m.id]?.away ?? ""
-                }" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600">
-              </div>
+              <div class="flex items-center space-x-2 justify-center">${scoreBlock}</div>
               <span class="w-1/3 truncate pl-2">${m.away}</span>
             </div>
             <div class="text-xs text-gray-400 text-center mt-1">Group ${
               m.group
             }</div>
+            ${isUser ? '<div class="text-xs text-green-400/90 text-center mt-1">Your match</div>' : ""}
             <div class="flex justify-between text-xs text-gray-500 mt-2">
               <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
             </div>
           `;
-      const inputs = matchDiv.querySelectorAll("input");
-      inputs[0].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = {
-          ...scores,
-          [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v },
+      if (showInputs) {
+        const inputs = matchDiv.querySelectorAll("input");
+        inputs[0].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v } };
         };
-      };
-      inputs[1].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = {
-          ...scores,
-          [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v },
+        inputs[1].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v } };
         };
-      };
+      }
       matchesDiv.appendChild(matchDiv);
     });
     fixtureContainer.appendChild(buttonDiv);
@@ -1397,7 +1492,15 @@ function render() {
     const totalLeagueRounds = getTotalLeagueRounds();
     const displayRound = round === 0 ? 1 : round;
     const matches = fixtures.filter((m) => m.round === displayRound).map(assignMatchDetails);
-    
+    // In team mode, auto-fill scores for matches that don't involve the user's team
+    if (gameMode === "team" && userTeam && round > 0) {
+      matches.forEach((m) => {
+        if (!isUserMatch(m) && (!scores[m.id] || scores[m.id].home === undefined)) {
+          const result = generateWeightedResult(m.home, m.away, selectedComp, true);
+          scores = { ...scores, [m.id]: result };
+        }
+      });
+    }
     const container = document.createElement("div");
     container.className =
       "min-h-screen bg-black text-gray-100 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6";
@@ -1444,8 +1547,8 @@ function render() {
     fixtureContainer.className =
       "bg-gray-900 border border-gray-700 rounded-2xl p-6 flex flex-col shadow-xl";
     fixtureContainer.innerHTML = `<div class="text-center mb-4"><h1 class="text-2xl font-bold text-blue-300">${
-      selectedComp.emoji
-    } ${selectedComp.name}</h1><p class="text-gray-400 text-lg">${
+      selectedComp.emoji || ""
+    } ${selectedComp.name}</h1>${gameMode === "team" && userTeam ? `<p class="text-sm text-blue-400/90">Managing: <strong>${userTeam}</strong></p>` : ""}<p class="text-gray-400 text-lg">${
       round > 0 ? `Round ${round} of ${totalLeagueRounds}` : "Pre-Season"
     }</p></div><h3 class="text-xl font-bold mb-4 text-blue-300">Fixtures: Round ${displayRound}</h3>`;
     const buttonDiv = document.createElement("div");
@@ -1466,14 +1569,25 @@ function render() {
           advanceLeague
         )
       );
-      buttonDiv.appendChild(
-        createButton(
-          "primary",
-          "🎲 Auto-Fill Results (Weighted)",
-          "w-full py-2 text-sm",
-          () => autoFillCurrentRoundResults(matches)
-        )
-      );
+      if (gameMode === "team" && userTeam) {
+        buttonDiv.appendChild(
+          createButton(
+            "primary",
+            "🎲 Auto-Fill Other Matches",
+            "w-full py-2 text-sm",
+            () => autoFillNonUserMatches(matches)
+          )
+        );
+      } else {
+        buttonDiv.appendChild(
+          createButton(
+            "primary",
+            "🎲 Auto-Fill Results (Weighted)",
+            "w-full py-2 text-sm",
+            () => autoFillCurrentRoundResults(matches)
+          )
+        );
+      }
     }
     buttonDiv.appendChild(
       createButton("warning", "Download Save", "w-full py-2", saveState)
@@ -1484,25 +1598,22 @@ function render() {
     const matchesDiv = document.createElement("div");
     matchesDiv.className = "space-y-3 overflow-y-auto pr-2 mb-4 flex-grow";
     matches.forEach((m) => {
+      const isUser = isUserMatch(m);
+      const showInputs = gameMode !== "team" || isUser;
+      const homeScore = scores[m.id]?.home ?? "";
+      const awayScore = scores[m.id]?.away ?? "";
+      const scoreBlock = showInputs
+        ? `<input type="number" min="0" max="15" value="${homeScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600" ${round === 0 ? "disabled" : ""}>
+                <span class="text-xl font-bold text-gray-400">-</span>
+                <input type="number" min="0" max="15" value="${awayScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600" ${round === 0 ? "disabled" : ""}>`
+        : `<span class="text-lg font-mono font-bold">${homeScore} – ${awayScore}</span>`;
       const matchDiv = document.createElement("div");
       matchDiv.className =
-        "bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 shadow-lg border border-gray-700";
+        "bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 shadow-lg border border-gray-700" + (isUser ? " ring-2 ring-green-400/60" : "");
       matchDiv.innerHTML = `
             <div class="flex items-center justify-between text-base font-medium">
               <span class="w-1/3 truncate text-right pr-2">${m.home}</span>
-              <div class="flex items-center space-x-2">
-                <input type="number" min="0" max="15" value="${
-                  scores[m.id]?.home ?? ""
-                }" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600" ${
-        round === 0 ? "disabled" : ""
-      }>
-                <span class="text-xl font-bold text-gray-400">-</span>
-                <input type="number" min="0" max="15" value="${
-                  scores[m.id]?.away ?? ""
-                }" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600" ${
-        round === 0 ? "disabled" : ""
-      }>
-              </div>
+              <div class="flex items-center space-x-2 justify-center">${scoreBlock}</div>
               <span class="w-1/3 truncate pl-2">${m.away}</span>
             </div>
             ${
@@ -1510,29 +1621,26 @@ function render() {
                 ? `<div class="text-xs text-gray-400 text-center mt-1">Group ${m.group}</div>`
                 : ""
             }
+            ${isUser ? '<div class="text-xs text-green-400/90 text-center mt-1">Your match</div>' : ""}
             <div class="flex justify-between text-xs text-gray-500 mt-2">
               <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
             </div>
           `;
-      const inputs = matchDiv.querySelectorAll("input");
-      inputs[0].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = {
-          ...scores,
-          [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v },
+      if (showInputs) {
+        const inputs = matchDiv.querySelectorAll("input");
+        inputs[0].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v } };
         };
-      };
-      inputs[1].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = {
-          ...scores,
-          [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v },
+        inputs[1].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v } };
         };
-      };
+      }
       matchesDiv.appendChild(matchDiv);
     });
     fixtureContainer.appendChild(buttonDiv);
@@ -1554,7 +1662,14 @@ function render() {
     
     // Get current round matches
     const currentRoundMatches = bracketToUse.filter(m => m.round === roundToUse).map(assignMatchDetails);
-    
+    if (gameMode === "team" && userTeam) {
+      currentRoundMatches.forEach((m) => {
+        if (!isUserMatch(m) && (!scores[m.id] || scores[m.id].home === undefined)) {
+          const result = generateWeightedResult(m.home, m.away, selectedComp, false);
+          scores = { ...scores, [m.id]: result };
+        }
+      });
+    }
     console.log("Current round matches:", currentRoundMatches);
     
     // FIX: Prevent infinite recursion by checking if we should finish the tournament
@@ -1604,7 +1719,7 @@ function render() {
     container.className = "min-h-screen bg-black text-gray-100 p-6 flex flex-col items-center";
     container.innerHTML = `
       <h1 class="text-4xl font-bold mb-4 text-blue-300">${stageName}</h1>
-      <p class="text-blue-400 mb-2 text-lg">${selectedComp.name}</p>
+      <p class="text-blue-400 mb-2 text-lg">${selectedComp.name}</p>${gameMode === "team" && userTeam ? `<p class="text-sm text-blue-400/90 mb-1">Managing: <strong>${userTeam}</strong></p>` : ""}
       <div class="text-gray-400 mb-6">Round ${roundToUse} of ${totalRounds}</div>
     `;
     
@@ -1612,46 +1727,42 @@ function render() {
     matchesDiv.className = "space-y-4 w-full max-w-3xl mb-6";
     
     currentRoundMatches.forEach((m) => {
+      const isUser = isUserMatch(m);
+      const showInputs = gameMode !== "team" || isUser;
+      const homeScore = scores[m.id]?.home ?? "";
+      const awayScore = scores[m.id]?.away ?? "";
+      const scoreBlock = showInputs
+        ? `<input type="number" min="0" max="15" value="${homeScore}" class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">
+            <span class="font-bold text-2xl text-gray-300">–</span>
+            <input type="number" min="0" max="15" value="${awayScore}" class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">`
+        : `<span class="font-bold text-2xl font-mono">${homeScore} – ${awayScore}</span>`;
       const matchDiv = document.createElement("div");
-      matchDiv.className = "bg-gradient-to-br from-blue-900/40 to-blue-900/60 rounded-xl p-5 border border-blue-500/60 shadow-lg";
+      matchDiv.className = "bg-gradient-to-br from-blue-900/40 to-blue-900/60 rounded-xl p-5 border border-blue-500/60 shadow-lg" + (isUser ? " ring-2 ring-green-400/60" : "");
       matchDiv.innerHTML = `
         <div class="flex items-center justify-between">
           <span class="font-bold text-xl w-2/5 truncate text-right pr-4">${m.home}</span>
-          <div class="flex items-center space-x-4">
-            <input type="number" min="0" max="15" value="${scores[m.id]?.home ?? ""}" 
-                   class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">
-            <span class="font-bold text-2xl text-gray-300">–</span>
-            <input type="number" min="0" max="15" value="${scores[m.id]?.away ?? ""}" 
-                   class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">
-          </div>
+          <div class="flex items-center space-x-4 justify-center">${scoreBlock}</div>
           <span class="font-bold text-xl w-2/5 truncate text-left pl-4">${m.away}</span>
         </div>
         <div class="flex justify-between text-sm text-gray-400 mt-3 pt-2 border-t border-blue-500/30">
-                       <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
-
+          <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
         </div>
       `;
-      
-      const inputs = matchDiv.querySelectorAll("input");
-      inputs[0].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = {
-          ...scores,
-          [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), home: v },
+      if (showInputs) {
+        const inputs = matchDiv.querySelectorAll("input");
+        inputs[0].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), home: v } };
         };
-      };
-      inputs[1].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = {
-          ...scores,
-          [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), away: v },
+        inputs[1].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), away: v } };
         };
-      };
-      
+      }
       matchesDiv.appendChild(matchDiv);
     });
     
@@ -1672,9 +1783,9 @@ function render() {
     primaryButtonDiv.appendChild(
       createButton(
         "primary",
-        "🎲 Auto-Fill",
+        gameMode === "team" && userTeam ? "🎲 Auto-Fill Other Matches" : "🎲 Auto-Fill",
         "py-3 px-6",
-        () => autoFillCurrentRoundResults(currentRoundMatches, true)
+        () => (gameMode === "team" && userTeam ? autoFillNonUserMatches(currentRoundMatches, true) : autoFillCurrentRoundResults(currentRoundMatches, true))
       )
     );
     buttonDiv.appendChild(primaryButtonDiv);
