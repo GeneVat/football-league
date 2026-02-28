@@ -1408,11 +1408,7 @@ function render() {
         advanceQualifying
       )
     );
-    if (gameMode === "team" && userTeam) {
-      buttonDiv.appendChild(
-        createButton("primary", "🎲 Auto-Fill Other Matches", "w-full py-2 text-sm", () => autoFillNonUserMatches(matches))
-      );
-    } else {
+    if (gameMode !== "team") {
       buttonDiv.appendChild(
         createButton("primary", "Auto-Fill", "w-full py-2 text-sm", () => autoFillCurrentRoundResults(matches))
       );
@@ -1423,50 +1419,45 @@ function render() {
     buttonDiv.appendChild(
       createButton("secondary", "← New Tournament", "w-full py-2", resetState)
     );
+    const matchesToShow = (gameMode === "team" && userTeam) ? matches.filter(isUserMatch) : matches;
     const matchesDiv = document.createElement("div");
     matchesDiv.className = "space-y-3 overflow-y-auto pr-2 mb-4 flex-grow";
-    matches.forEach((m) => {
-      const isUser = isUserMatch(m);
-      const showInputs = gameMode !== "team" || isUser;
+    matchesToShow.forEach((m) => {
       const homeScore = scores[m.id]?.home ?? "";
       const awayScore = scores[m.id]?.away ?? "";
-      const scoreBlock = showInputs
-        ? `<input type="number" min="0" max="15" value="${homeScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600">
-                <span class="text-xl font-bold text-gray-400">-</span>
-                <input type="number" min="0" max="15" value="${awayScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600">`
-        : `<span class="text-lg font-mono font-bold">${homeScore} – ${awayScore}</span>`;
+      const isTeamMode = gameMode === "team" && userTeam;
       const matchDiv = document.createElement("div");
       matchDiv.className =
-        "bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 shadow-lg border border-gray-700" + (isUser ? " ring-2 ring-green-400/60" : "");
+        "bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 shadow-lg border border-gray-700" + (isTeamMode ? " ring-2 ring-green-400/60" : "");
       matchDiv.innerHTML = `
             <div class="flex items-center justify-between text-base font-medium">
               <span class="w-1/3 truncate text-right pr-2">${m.home}</span>
-              <div class="flex items-center space-x-2 justify-center">${scoreBlock}</div>
+              <div class="flex items-center space-x-2 justify-center">
+                <input type="number" min="0" max="15" value="${homeScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600">
+                <span class="text-xl font-bold text-gray-400">-</span>
+                <input type="number" min="0" max="15" value="${awayScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600">
+              </div>
               <span class="w-1/3 truncate pl-2">${m.away}</span>
             </div>
-            <div class="text-xs text-gray-400 text-center mt-1">Group ${
-              m.group
-            }</div>
-            ${isUser ? '<div class="text-xs text-green-400/90 text-center mt-1">Your match</div>' : ""}
+            <div class="text-xs text-gray-400 text-center mt-1">Group ${m.group}</div>
+            ${isTeamMode ? '<div class="text-xs text-green-400/90 text-center mt-1">Your match</div>' : ""}
             <div class="flex justify-between text-xs text-gray-500 mt-2">
               <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
             </div>
           `;
-      if (showInputs) {
-        const inputs = matchDiv.querySelectorAll("input");
-        inputs[0].onchange = (e) => {
-          let v = parseInt(e.target.value) || 0;
-          v = Math.max(0, Math.min(15, v));
-          e.target.value = v;
-          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v } };
-        };
-        inputs[1].onchange = (e) => {
-          let v = parseInt(e.target.value) || 0;
-          v = Math.max(0, Math.min(15, v));
-          e.target.value = v;
-          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v } };
-        };
-      }
+      const inputs = matchDiv.querySelectorAll("input");
+      inputs[0].onchange = (e) => {
+        let v = parseInt(e.target.value) || 0;
+        v = Math.max(0, Math.min(15, v));
+        e.target.value = v;
+        scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v } };
+      };
+      inputs[1].onchange = (e) => {
+        let v = parseInt(e.target.value) || 0;
+        v = Math.max(0, Math.min(15, v));
+        e.target.value = v;
+        scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v } };
+      };
       matchesDiv.appendChild(matchDiv);
     });
     fixtureContainer.appendChild(buttonDiv);
@@ -1569,16 +1560,7 @@ function render() {
           advanceLeague
         )
       );
-      if (gameMode === "team" && userTeam) {
-        buttonDiv.appendChild(
-          createButton(
-            "primary",
-            "🎲 Auto-Fill Other Matches",
-            "w-full py-2 text-sm",
-            () => autoFillNonUserMatches(matches)
-          )
-        );
-      } else {
+      if (gameMode !== "team") {
         buttonDiv.appendChild(
           createButton(
             "primary",
@@ -1595,25 +1577,24 @@ function render() {
     buttonDiv.appendChild(
       createButton("secondary", "← New Tournament", "w-full py-2", resetState)
     );
+    const matchesToShow = (gameMode === "team" && userTeam) ? matches.filter(isUserMatch) : matches;
     const matchesDiv = document.createElement("div");
     matchesDiv.className = "space-y-3 overflow-y-auto pr-2 mb-4 flex-grow";
-    matches.forEach((m) => {
-      const isUser = isUserMatch(m);
-      const showInputs = gameMode !== "team" || isUser;
+    matchesToShow.forEach((m) => {
       const homeScore = scores[m.id]?.home ?? "";
       const awayScore = scores[m.id]?.away ?? "";
-      const scoreBlock = showInputs
-        ? `<input type="number" min="0" max="15" value="${homeScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600" ${round === 0 ? "disabled" : ""}>
-                <span class="text-xl font-bold text-gray-400">-</span>
-                <input type="number" min="0" max="15" value="${awayScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600" ${round === 0 ? "disabled" : ""}>`
-        : `<span class="text-lg font-mono font-bold">${homeScore} – ${awayScore}</span>`;
+      const isTeamMode = gameMode === "team" && userTeam;
       const matchDiv = document.createElement("div");
       matchDiv.className =
-        "bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 shadow-lg border border-gray-700" + (isUser ? " ring-2 ring-green-400/60" : "");
+        "bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 shadow-lg border border-gray-700" + (isTeamMode ? " ring-2 ring-green-400/60" : "");
       matchDiv.innerHTML = `
             <div class="flex items-center justify-between text-base font-medium">
               <span class="w-1/3 truncate text-right pr-2">${m.home}</span>
-              <div class="flex items-center space-x-2 justify-center">${scoreBlock}</div>
+              <div class="flex items-center space-x-2 justify-center">
+                <input type="number" min="0" max="15" value="${homeScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600" ${round === 0 ? "disabled" : ""}>
+                <span class="text-xl font-bold text-gray-400">-</span>
+                <input type="number" min="0" max="15" value="${awayScore}" class="w-12 text-center text-lg bg-black/30 rounded-md border border-gray-600" ${round === 0 ? "disabled" : ""}>
+              </div>
               <span class="w-1/3 truncate pl-2">${m.away}</span>
             </div>
             ${
@@ -1621,26 +1602,24 @@ function render() {
                 ? `<div class="text-xs text-gray-400 text-center mt-1">Group ${m.group}</div>`
                 : ""
             }
-            ${isUser ? '<div class="text-xs text-green-400/90 text-center mt-1">Your match</div>' : ""}
+            ${isTeamMode ? '<div class="text-xs text-green-400/90 text-center mt-1">Your match</div>' : ""}
             <div class="flex justify-between text-xs text-gray-500 mt-2">
               <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
             </div>
           `;
-      if (showInputs) {
-        const inputs = matchDiv.querySelectorAll("input");
-        inputs[0].onchange = (e) => {
-          let v = parseInt(e.target.value) || 0;
-          v = Math.max(0, Math.min(15, v));
-          e.target.value = v;
-          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v } };
-        };
-        inputs[1].onchange = (e) => {
-          let v = parseInt(e.target.value) || 0;
-          v = Math.max(0, Math.min(15, v));
-          e.target.value = v;
-          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v } };
-        };
-      }
+      const inputs = matchDiv.querySelectorAll("input");
+      inputs[0].onchange = (e) => {
+        let v = parseInt(e.target.value) || 0;
+        v = Math.max(0, Math.min(15, v));
+        e.target.value = v;
+        scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v } };
+      };
+      inputs[1].onchange = (e) => {
+        let v = parseInt(e.target.value) || 0;
+        v = Math.max(0, Math.min(15, v));
+        e.target.value = v;
+        scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v } };
+      };
       matchesDiv.appendChild(matchDiv);
     });
     fixtureContainer.appendChild(buttonDiv);
@@ -1726,43 +1705,40 @@ function render() {
     const matchesDiv = document.createElement("div");
     matchesDiv.className = "space-y-4 w-full max-w-3xl mb-6";
     
-    currentRoundMatches.forEach((m) => {
-      const isUser = isUserMatch(m);
-      const showInputs = gameMode !== "team" || isUser;
+    const matchesToShow = (gameMode === "team" && userTeam) ? currentRoundMatches.filter(isUserMatch) : currentRoundMatches;
+    matchesToShow.forEach((m) => {
       const homeScore = scores[m.id]?.home ?? "";
       const awayScore = scores[m.id]?.away ?? "";
-      const scoreBlock = showInputs
-        ? `<input type="number" min="0" max="15" value="${homeScore}" class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">
-            <span class="font-bold text-2xl text-gray-300">–</span>
-            <input type="number" min="0" max="15" value="${awayScore}" class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">`
-        : `<span class="font-bold text-2xl font-mono">${homeScore} – ${awayScore}</span>`;
+      const isTeamMode = gameMode === "team" && userTeam;
       const matchDiv = document.createElement("div");
-      matchDiv.className = "bg-gradient-to-br from-blue-900/40 to-blue-900/60 rounded-xl p-5 border border-blue-500/60 shadow-lg" + (isUser ? " ring-2 ring-green-400/60" : "");
+      matchDiv.className = "bg-gradient-to-br from-blue-900/40 to-blue-900/60 rounded-xl p-5 border border-blue-500/60 shadow-lg" + (isTeamMode ? " ring-2 ring-green-400/60" : "");
       matchDiv.innerHTML = `
         <div class="flex items-center justify-between">
           <span class="font-bold text-xl w-2/5 truncate text-right pr-4">${m.home}</span>
-          <div class="flex items-center space-x-4 justify-center">${scoreBlock}</div>
+          <div class="flex items-center space-x-4 justify-center">
+            <input type="number" min="0" max="15" value="${homeScore}" class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">
+            <span class="font-bold text-2xl text-gray-300">–</span>
+            <input type="number" min="0" max="15" value="${awayScore}" class="w-16 text-center text-xl bg-black/30 rounded-md border border-gray-600">
+          </div>
           <span class="font-bold text-xl w-2/5 truncate text-left pl-4">${m.away}</span>
         </div>
         <div class="flex justify-between text-sm text-gray-400 mt-3 pt-2 border-t border-blue-500/30">
           <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
         </div>
       `;
-      if (showInputs) {
-        const inputs = matchDiv.querySelectorAll("input");
-        inputs[0].onchange = (e) => {
-          let v = parseInt(e.target.value) || 0;
-          v = Math.max(0, Math.min(15, v));
-          e.target.value = v;
-          scores = { ...scores, [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), home: v } };
-        };
-        inputs[1].onchange = (e) => {
-          let v = parseInt(e.target.value) || 0;
-          v = Math.max(0, Math.min(15, v));
-          e.target.value = v;
-          scores = { ...scores, [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), away: v } };
-        };
-      }
+      const inputs = matchDiv.querySelectorAll("input");
+      inputs[0].onchange = (e) => {
+        let v = parseInt(e.target.value) || 0;
+        v = Math.max(0, Math.min(15, v));
+        e.target.value = v;
+        scores = { ...scores, [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), home: v } };
+      };
+      inputs[1].onchange = (e) => {
+        let v = parseInt(e.target.value) || 0;
+        v = Math.max(0, Math.min(15, v));
+        e.target.value = v;
+        scores = { ...scores, [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), away: v } };
+      };
       matchesDiv.appendChild(matchDiv);
     });
     
@@ -1780,14 +1756,16 @@ function render() {
         advanceFn
       )
     );
-    primaryButtonDiv.appendChild(
-      createButton(
-        "primary",
-        gameMode === "team" && userTeam ? "🎲 Auto-Fill Other Matches" : "🎲 Auto-Fill",
-        "py-3 px-6",
-        () => (gameMode === "team" && userTeam ? autoFillNonUserMatches(currentRoundMatches, true) : autoFillCurrentRoundResults(currentRoundMatches, true))
-      )
-    );
+    if (gameMode !== "team") {
+      primaryButtonDiv.appendChild(
+        createButton(
+          "primary",
+          "🎲 Auto-Fill",
+          "py-3 px-6",
+          () => autoFillCurrentRoundResults(currentRoundMatches, true)
+        )
+      );
+    }
     buttonDiv.appendChild(primaryButtonDiv);
     
     const secondaryButtonDiv = document.createElement("div");
