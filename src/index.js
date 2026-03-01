@@ -412,6 +412,260 @@ let leaguePlayoffBracket = [];
 let leaguePlayoffRound = 0;
 let gameMode = "league"; // "league" | "team" - league = enter all scores, team = only your team's matches
 let userTeam = null; // in team mode, the team the user manages
+let matchSimulation = null; // { matchId, home, away, homeGoals, awayGoals, targetHome, targetAway, minute, phase, goalEvents, dots, startTime, animationId } for team-mode "watch" view
+
+// --- MATCH SIMULATION (team mode watch) ---
+const PITCH_WIDTH = 100;
+const PITCH_HEIGHT = 100;
+const MATCH_DURATION_SEC = 25;
+const GOAL_FLASH_MS = 1800;
+// Formation 1-4-3-3: [gk, def x4, mid x3, fwd x3]. x,y in % of pitch (home attacks right)
+const FORMATION_HOME = [
+  { x: 5, y: 50 },   // GK
+  { x: 14, y: 22 },  { x: 14, y: 42 },  { x: 14, y: 58 },  { x: 14, y: 78 },  // back 4
+  { x: 26, y: 35 },  { x: 26, y: 50 },  { x: 26, y: 65 },  // mid 3
+  { x: 40, y: 30 },  { x: 40, y: 50 },  { x: 40, y: 70 },  // fwd 3
+];
+const FORMATION_AWAY = FORMATION_HOME.map((p) => ({ x: PITCH_WIDTH - p.x, y: p.y })); // mirror
+
+function initDots() {
+  const home = FORMATION_HOME.map((pos) => ({
+    x: pos.x + (Math.random() - 0.5) * 4,
+    y: pos.y + (Math.random() - 0.5) * 4,
+    vx: (Math.random() - 0.5) * 0.8,
+    vy: (Math.random() - 0.5) * 0.8,
+    baseX: pos.x,
+    baseY: pos.y,
+  }));
+  const away = FORMATION_AWAY.map((pos) => ({
+    x: pos.x + (Math.random() - 0.5) * 4,
+    y: pos.y + (Math.random() - 0.5) * 4,
+    vx: (Math.random() - 0.5) * 0.8,
+    vy: (Math.random() - 0.5) * 0.8,
+    baseX: pos.x,
+    baseY: pos.y,
+  }));
+  return { home, away };
+}
+
+function initBall() {
+  return {
+    x: 50,
+    y: 50,
+    vx: (Math.random() - 0.5) * 1.5,
+    vy: (Math.random() - 0.5) * 1.5,
+  };
+}
+
+function startMatchSimulation(match, allowDraw = true) {
+  if (matchSimulation?.animationId) cancelAnimationFrame(matchSimulation.animationId);
+  const result = generateWeightedResult(match.home, match.away, selectedComp, allowDraw);
+  const goalEvents = [];
+  for (let i = 0; i < result.home; i++) goalEvents.push({ minute: Math.floor(Math.random() * 88) + 1, team: "home" });
+  for (let i = 0; i < result.away; i++) goalEvents.push({ minute: Math.floor(Math.random() * 88) + 1, team: "away" });
+  goalEvents.sort((a, b) => a.minute - b.minute);
+  matchSimulation = {
+    matchId: match.id,
+    home: match.home,
+    away: match.away,
+    homeGoals: 0,
+    awayGoals: 0,
+    targetHome: result.home,
+    targetAway: result.away,
+    minute: 0,
+    phase: "playing",
+    goalEvents,
+    goalsShown: 0,
+    dots: initDots(),
+    ball: initBall(),
+    startTime: null,
+    animationId: null,
+    goalFlashUntil: 0,
+  };
+  requestAnimationFrame(runSimulationFrame);
+  render();
+}
+
+function updateDots(dots) {
+  const margin = 3;
+  const formationPull = 0.02;
+  ["home", "away"].forEach((side) => {
+    dots[side].forEach((d) => {
+      d.vx += (d.baseX - d.x) * formationPull + (Math.random() - 0.5) * 0.12;
+      d.vy += (d.baseY - d.y) * formationPull + (Math.random() - 0.5) * 0.12;
+      d.vx = Math.max(-1.2, Math.min(1.2, d.vx));
+      d.vy = Math.max(-1.2, Math.min(1.2, d.vy));
+      d.x += d.vx;
+      d.y += d.vy;
+      if (d.x < margin) { d.x = margin; d.vx *= -0.8; }
+      if (d.x > PITCH_WIDTH - margin) { d.x = PITCH_WIDTH - margin; d.vx *= -0.8; }
+      if (d.y < margin) { d.y = margin; d.vy *= -0.8; }
+      if (d.y > PITCH_HEIGHT - margin) { d.y = PITCH_HEIGHT - margin; d.vy *= -0.8; }
+    });
+  });
+}
+
+function updateBall(ball, dots) {
+  const margin = 2;
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+  if (ball.x < margin) { ball.x = margin; ball.vx *= -0.9; }
+  if (ball.x > PITCH_WIDTH - margin) { ball.x = PITCH_WIDTH - margin; ball.vx *= -0.9; }
+  if (ball.y < margin) { ball.y = margin; ball.vy *= -0.9; }
+  if (ball.y > PITCH_HEIGHT - margin) { ball.y = PITCH_HEIGHT - margin; ball.vy *= -0.9; }
+  ball.vx += (Math.random() - 0.5) * 0.2;
+  ball.vy += (Math.random() - 0.5) * 0.2;
+  ball.vx = Math.max(-2, Math.min(2, ball.vx));
+  ball.vy = Math.max(-2, Math.min(2, ball.vy));
+}
+
+function runSimulationFrame() {
+  if (!matchSimulation || matchSimulation.phase !== "playing") return;
+  const sim = matchSimulation;
+  if (!sim.startTime) sim.startTime = performance.now();
+  const elapsed = (performance.now() - sim.startTime) / 1000;
+  sim.minute = Math.min(90, Math.floor((elapsed / MATCH_DURATION_SEC) * 90));
+  updateDots(sim.dots);
+  if (sim.ball) updateBall(sim.ball, sim.dots);
+  while (sim.goalsShown < sim.goalEvents.length && sim.goalEvents[sim.goalsShown].minute <= sim.minute) {
+    const g = sim.goalEvents[sim.goalsShown];
+    if (g.team === "home") sim.homeGoals++;
+    else sim.awayGoals++;
+    sim.goalsShown++;
+    sim.goalFlashUntil = performance.now() + GOAL_FLASH_MS;
+  }
+  if (sim.minute >= 90) {
+    sim.phase = "finished";
+    scores = { ...scores, [sim.matchId]: { home: sim.targetHome, away: sim.targetAway } };
+    if (sim.animationId) cancelAnimationFrame(sim.animationId);
+    sim.animationId = null;
+    render();
+    return;
+  }
+  sim.animationId = requestAnimationFrame(runSimulationFrame);
+  render();
+}
+
+function endMatchSimulation() {
+  if (matchSimulation?.animationId) cancelAnimationFrame(matchSimulation.animationId);
+  matchSimulation = null;
+  render();
+}
+
+function createMatchSimulationView() {
+  if (!matchSimulation) return null;
+  const sim = matchSimulation;
+  const container = document.createElement("div");
+  container.className = "bg-gray-900 rounded-xl border border-gray-700 overflow-hidden";
+  const showGoal = sim.phase === "playing" && performance.now() < sim.goalFlashUntil;
+  container.innerHTML = `
+    <div class="p-3 border-b border-gray-700 flex items-center justify-between flex-wrap gap-2">
+      <span class="font-bold text-sm truncate">${sim.home}</span>
+      <div class="flex items-center gap-3">
+        <span class="text-2xl font-mono font-bold tabular-nums">${sim.homeGoals}</span>
+        <span class="text-gray-500">–</span>
+        <span class="text-2xl font-mono font-bold tabular-nums">${sim.awayGoals}</span>
+      </div>
+      <span class="font-bold text-sm truncate">${sim.away}</span>
+    </div>
+    ${sim.phase === "playing" ? `<div class="text-center text-xs text-gray-500 py-1">${sim.minute}'</div>` : ""}
+    ${sim.phase === "finished" ? `<div class="text-center text-sm text-green-400 font-bold py-2">Full time</div>` : ""}
+    ${showGoal ? '<div class="text-center text-xl font-black text-yellow-300 animate-pulse py-1">GOAL!</div>' : ""}
+  `;
+  const pitchWrap = document.createElement("div");
+  pitchWrap.className = "relative w-full overflow-hidden";
+  pitchWrap.style.aspectRatio = "3/2";
+  pitchWrap.style.background = "linear-gradient(180deg, #166534 0%, #15803d 50%, #166534 100%)";
+  pitchWrap.style.borderTop = "3px solid rgba(255,255,255,0.9)";
+  pitchWrap.style.borderBottom = "3px solid rgba(255,255,255,0.9)";
+  pitchWrap.style.boxSizing = "border-box";
+
+  const w = (p) => { const el = document.createElement("div"); el.className = "absolute bg-white"; el.style.left = p.left + "%"; el.style.top = p.top + "%"; el.style.width = p.width + "%"; el.style.height = p.height + "%"; el.style.opacity = "0.9"; pitchWrap.appendChild(el); };
+  w({ left: 0, top: 0, width: 100, height: 2 });   // top touchline
+  w({ left: 0, top: 98, width: 100, height: 2 });  // bottom
+  w({ left: 0, top: 0, width: 2, height: 100 });   // left
+  w({ left: 98, top: 0, width: 2, height: 100 });  // right
+  w({ left: 49.5, top: 0, width: 1, height: 100 }); // halfway
+  w({ left: 0, top: 0, width: 18, height: 2 });   // penalty area L top
+  w({ left: 0, top: 98, width: 18, height: 2 });  // penalty area L bottom
+  w({ left: 18, top: 0, width: 2, height: 100 }); // penalty area L right
+  w({ left: 0, top: 0, width: 6, height: 2 });    // goal box L top
+  w({ left: 0, top: 98, width: 6, height: 2 });   // goal box L bottom
+  w({ left: 6, top: 0, width: 2, height: 100 });  // goal box L right
+  w({ left: 82, top: 0, width: 18, height: 2 });  // penalty area R
+  w({ left: 82, top: 98, width: 18, height: 2 });
+  w({ left: 80, top: 0, width: 2, height: 100 });
+  w({ left: 94, top: 0, width: 6, height: 2 });   // goal box R
+  w({ left: 94, top: 98, width: 6, height: 2 });
+  w({ left: 92, top: 0, width: 2, height: 100 });
+
+  const addGoal = (isLeft) => {
+    const g = document.createElement("div");
+    g.className = "absolute bg-white";
+    g.style.width = "2.5%";
+    g.style.height = "20%";
+    g.style.top = "40%";
+    g.style[isLeft ? "left" : "right"] = "-0.5%";
+    g.style.border = "3px solid #1e293b";
+    g.style.boxSizing = "border-box";
+    pitchWrap.appendChild(g);
+    const net = document.createElement("div");
+    net.className = "absolute";
+    net.style.width = "1.8%";
+    net.style.height = "16%";
+    net.style.top = "42%";
+    net.style[isLeft ? "left" : "right"] = "0.3%";
+    net.style.background = "repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0, rgba(0,0,0,0.15) 1px, transparent 1px), repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0, rgba(0,0,0,0.15) 1px, transparent 1px)";
+    net.style.backgroundSize = "3px 3px";
+    pitchWrap.appendChild(net);
+  };
+  addGoal(true);
+  addGoal(false);
+
+  const centerCircle = document.createElement("div");
+  centerCircle.className = "absolute rounded-full border-2 border-white/85";
+  centerCircle.style.left = "50%";
+  centerCircle.style.top = "50%";
+  centerCircle.style.width = "18%";
+  centerCircle.style.height = "18%";
+  centerCircle.style.transform = "translate(-50%, -50%)";
+  centerCircle.style.background = "transparent";
+  pitchWrap.appendChild(centerCircle);
+
+  ["home", "away"].forEach((side) => {
+    const color = side === "home" ? "#2563eb" : "#dc2626";
+    (sim.dots[side] || []).forEach((d, i) => {
+      const isKeeper = i === 0;
+      const dot = document.createElement("div");
+      dot.className = "absolute rounded-full border-2 border-white shadow-lg";
+      dot.style.width = isKeeper ? "12px" : "10px";
+      dot.style.height = isKeeper ? "12px" : "10px";
+      dot.style.left = d.x + "%";
+      dot.style.top = d.y + "%";
+      dot.style.transform = "translate(-50%, -50%)";
+      dot.style.backgroundColor = color;
+      pitchWrap.appendChild(dot);
+    });
+  });
+
+  if (sim.ball) {
+    const ball = document.createElement("div");
+    ball.className = "absolute rounded-full bg-white border-2 border-gray-300 shadow-lg";
+    ball.style.width = "8px";
+    ball.style.height = "8px";
+    ball.style.left = sim.ball.x + "%";
+    ball.style.top = sim.ball.y + "%";
+    ball.style.transform = "translate(-50%, -50%)";
+    pitchWrap.appendChild(ball);
+  }
+
+  container.appendChild(pitchWrap);
+  if (sim.phase === "finished") {
+    const btn = createButton("primary", "Continue", "w-full mt-3 mx-3 mb-3", endMatchSimulation);
+    container.appendChild(btn);
+  }
+  return container;
+}
 
 // --- SAVE/LOAD FUNCTIONS ---
 function saveState() {
@@ -546,6 +800,7 @@ function resetState() {
   leaguePlayoffRound = 0;
   gameMode = "league";
   userTeam = null;
+  matchSimulation = null;
   currentPhase = "menu";
   render();
 }
@@ -1423,13 +1678,36 @@ function render() {
     const matchesDiv = document.createElement("div");
     matchesDiv.className = "space-y-3 overflow-y-auto pr-2 mb-4 flex-grow";
     matchesToShow.forEach((m) => {
+      const hasScore = scores[m.id] != null && scores[m.id].home !== undefined;
+      const isSimulating = matchSimulation && matchSimulation.matchId === m.id;
+      const isTeamMode = gameMode === "team" && userTeam;
+
+      if (isSimulating) {
+        const simView = createMatchSimulationView();
+        if (simView) matchesDiv.appendChild(simView);
+        return;
+      }
+
       const homeScore = scores[m.id]?.home ?? "";
       const awayScore = scores[m.id]?.away ?? "";
-      const isTeamMode = gameMode === "team" && userTeam;
       const matchDiv = document.createElement("div");
       matchDiv.className =
         "bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 shadow-lg border border-gray-700" + (isTeamMode ? " ring-2 ring-green-400/60" : "");
-      matchDiv.innerHTML = `
+      if (isTeamMode && !hasScore) {
+        matchDiv.innerHTML = `
+            <div class="flex items-center justify-between text-base font-medium mb-2">
+              <span class="w-1/3 truncate text-right pr-2">${m.home}</span>
+              <span class="text-gray-500">vs</span>
+              <span class="w-1/3 truncate pl-2">${m.away}</span>
+            </div>
+            <div class="text-xs text-gray-400 text-center mt-1">Group ${m.group}</div>
+            <div class="text-xs text-green-400/90 text-center mt-1">Your match</div>
+            <div class="flex justify-between text-xs text-gray-500 mt-2"><span>${m.stadium}</span> <span>${m.weather}</span></div>
+            <button type="button" id="watch-match-${m.id}" class="w-full mt-4 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl border border-green-500/50">Watch match</button>
+          `;
+        matchDiv.querySelector(`#watch-match-${m.id}`).onclick = () => startMatchSimulation(m, true);
+      } else {
+        matchDiv.innerHTML = `
             <div class="flex items-center justify-between text-base font-medium">
               <span class="w-1/3 truncate text-right pr-2">${m.home}</span>
               <div class="flex items-center space-x-2 justify-center">
@@ -1445,19 +1723,20 @@ function render() {
               <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
             </div>
           `;
-      const inputs = matchDiv.querySelectorAll("input");
-      inputs[0].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v } };
-      };
-      inputs[1].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v } };
-      };
+        const inputs = matchDiv.querySelectorAll("input");
+        inputs[0].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v } };
+        };
+        inputs[1].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v } };
+        };
+      }
       matchesDiv.appendChild(matchDiv);
     });
     fixtureContainer.appendChild(buttonDiv);
@@ -1581,13 +1860,36 @@ function render() {
     const matchesDiv = document.createElement("div");
     matchesDiv.className = "space-y-3 overflow-y-auto pr-2 mb-4 flex-grow";
     matchesToShow.forEach((m) => {
+      const hasScore = scores[m.id] != null && scores[m.id].home !== undefined;
+      const isSimulating = matchSimulation && matchSimulation.matchId === m.id;
+      const isTeamMode = gameMode === "team" && userTeam;
+
+      if (isSimulating) {
+        const simView = createMatchSimulationView();
+        if (simView) matchesDiv.appendChild(simView);
+        return;
+      }
+
       const homeScore = scores[m.id]?.home ?? "";
       const awayScore = scores[m.id]?.away ?? "";
-      const isTeamMode = gameMode === "team" && userTeam;
       const matchDiv = document.createElement("div");
       matchDiv.className =
         "bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 shadow-lg border border-gray-700" + (isTeamMode ? " ring-2 ring-green-400/60" : "");
-      matchDiv.innerHTML = `
+      if (isTeamMode && !hasScore && round > 0) {
+        matchDiv.innerHTML = `
+            <div class="flex items-center justify-between text-base font-medium mb-2">
+              <span class="w-1/3 truncate text-right pr-2">${m.home}</span>
+              <span class="text-gray-500">vs</span>
+              <span class="w-1/3 truncate pl-2">${m.away}</span>
+            </div>
+            ${hasGroups() ? `<div class="text-xs text-gray-400 text-center mt-1">Group ${m.group}</div>` : ""}
+            <div class="text-xs text-green-400/90 text-center mt-1">Your match</div>
+            <div class="flex justify-between text-xs text-gray-500 mt-2"><span>${m.stadium || ""}</span> <span>${m.weather || ""}</span></div>
+            <button type="button" id="watch-match-league-${m.id}" class="w-full mt-4 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl border border-green-500/50">Watch match</button>
+          `;
+        matchDiv.querySelector(`#watch-match-league-${m.id}`).onclick = () => startMatchSimulation(m, true);
+      } else {
+        matchDiv.innerHTML = `
             <div class="flex items-center justify-between text-base font-medium">
               <span class="w-1/3 truncate text-right pr-2">${m.home}</span>
               <div class="flex items-center space-x-2 justify-center">
@@ -1607,19 +1909,20 @@ function render() {
               <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
             </div>
           `;
-      const inputs = matchDiv.querySelectorAll("input");
-      inputs[0].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v } };
-      };
-      inputs[1].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v } };
-      };
+        const inputs = matchDiv.querySelectorAll("input");
+        inputs[0].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), home: v } };
+        };
+        inputs[1].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { h: 0, a: 0 }), away: v } };
+        };
+      }
       matchesDiv.appendChild(matchDiv);
     });
     fixtureContainer.appendChild(buttonDiv);
@@ -1707,12 +2010,33 @@ function render() {
     
     const matchesToShow = (gameMode === "team" && userTeam) ? currentRoundMatches.filter(isUserMatch) : currentRoundMatches;
     matchesToShow.forEach((m) => {
+      const hasScore = scores[m.id] != null && scores[m.id].home !== undefined;
+      const isSimulating = matchSimulation && matchSimulation.matchId === m.id;
+      const isTeamMode = gameMode === "team" && userTeam;
+
+      if (isSimulating) {
+        const simView = createMatchSimulationView();
+        if (simView) matchesDiv.appendChild(simView);
+        return;
+      }
+
       const homeScore = scores[m.id]?.home ?? "";
       const awayScore = scores[m.id]?.away ?? "";
-      const isTeamMode = gameMode === "team" && userTeam;
       const matchDiv = document.createElement("div");
       matchDiv.className = "bg-gradient-to-br from-blue-900/40 to-blue-900/60 rounded-xl p-5 border border-blue-500/60 shadow-lg" + (isTeamMode ? " ring-2 ring-green-400/60" : "");
-      matchDiv.innerHTML = `
+      if (isTeamMode && !hasScore) {
+        matchDiv.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-bold text-xl w-2/5 truncate text-right pr-4">${m.home}</span>
+          <span class="text-gray-400">vs</span>
+          <span class="font-bold text-xl w-2/5 truncate text-left pl-4">${m.away}</span>
+        </div>
+        <div class="flex justify-between text-sm text-gray-400 pt-2 border-t border-blue-500/30"><span>${m.stadium}</span> <span>${m.weather}</span></div>
+        <button type="button" id="watch-knockout-${m.id}" class="w-full mt-4 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl border border-green-500/50">Watch match</button>
+      `;
+        matchDiv.querySelector(`#watch-knockout-${m.id}`).onclick = () => startMatchSimulation(m, false);
+      } else {
+        matchDiv.innerHTML = `
         <div class="flex items-center justify-between">
           <span class="font-bold text-xl w-2/5 truncate text-right pr-4">${m.home}</span>
           <div class="flex items-center space-x-4 justify-center">
@@ -1726,19 +2050,20 @@ function render() {
           <span>On ${m.time} at ${m.stadium}</span> <span> Conditions: ${m.weather}</span>
         </div>
       `;
-      const inputs = matchDiv.querySelectorAll("input");
-      inputs[0].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = { ...scores, [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), home: v } };
-      };
-      inputs[1].onchange = (e) => {
-        let v = parseInt(e.target.value) || 0;
-        v = Math.max(0, Math.min(15, v));
-        e.target.value = v;
-        scores = { ...scores, [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), away: v } };
-      };
+        const inputs = matchDiv.querySelectorAll("input");
+        inputs[0].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), home: v } };
+        };
+        inputs[1].onchange = (e) => {
+          let v = parseInt(e.target.value) || 0;
+          v = Math.max(0, Math.min(15, v));
+          e.target.value = v;
+          scores = { ...scores, [m.id]: { ...(scores[m.id] || { home: 0, away: 0 }), away: v } };
+        };
+      }
       matchesDiv.appendChild(matchDiv);
     });
     
